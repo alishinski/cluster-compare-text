@@ -59,6 +59,15 @@ stem <- TRUE
 
 # Creating a list of groups of corpora for each group of vectors
 
+# Modified stemCompletion function, as stemCompletion was not working
+stemCompletion2 <- function(x, dictionary) {
+x <- unlist(strsplit(as.character(x), " "))
+x <- x[x != ""]
+x <- stemCompletion(x, dictionary=dictionary)
+x <- paste(x, sep="", collapse=" ")
+PlainTextDocument(stripWhitespace(x))
+}
+
 corpora_list <- list()
 
 for (i in seq(my_vec)){
@@ -69,7 +78,9 @@ for (i in seq(my_vec)){
   myCorpus <- tm_map(myCorpus, removeNumbers, mc.cores = 1)
   myCorpus <- tm_map(myCorpus, removeWords, stopwords("english"), mc.cores = 1)
   myCorpus <- tm_map(myCorpus, removeWords, custom_stopwords, mc.cores=1)
+  myCorpus_copy <- myCorpus
   myCorpus <- tm_map(myCorpus, stemDocument, mc.cores = 1)
+  myCorpus <- tm_map(myCorpus, stemCompletion2, myCorpus_copy)
   myCorpus <- tm_map(myCorpus, stripWhitespace, mc.cores = 1)
   myCorpus <- tm_map(myCorpus, PlainTextDocument)
   corpora_list[[i]] <- myCorpus
