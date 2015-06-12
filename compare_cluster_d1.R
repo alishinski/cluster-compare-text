@@ -17,7 +17,7 @@ library(tm)
 library(lsa)
 library(cluster)
 
-# Loading vector of documents 
+# Loading vector of documents (can also take a list of vectors so that list items can be used as groups)
 
 my_vec <- ""
 
@@ -191,7 +191,7 @@ for (i in seq(length(my_clusters))){
   my_clusters_ordered [[i]] <- sort(my_clusters[[i]], decreasing = TRUE)
 }
 
-wc <- my_clusters_ordered_temp
+wc <- my_clusters_ordered
 
 #-------------------------------------------------------
 # 6. Output
@@ -199,15 +199,15 @@ wc <- my_clusters_ordered_temp
 
 # Terms in term document matrix 
 
-myTDM_all
+print(myTDM_all)
 
 # Terms in term document matrix with sparse terms removed
 
-myTDM_common
+print(myTDM_common)
 
 # Number of documents in each cluster
 
-table(kfit$cluster)
+print(table(kfit$cluster))
 
 # 10 most frequently included terms in each cluster
 
@@ -217,7 +217,7 @@ print(my_clusters_df)
 
 wordclouds <- list()
 for (i in 1:length(nclusters)){
-  wordclouds[[i]] <- wordcloud(names(wc[[i]][1:40]), wc[[i]][1:40])
+  wordclouds[[i]] <- wordcloud(names(wc[[i]][1:40]), wc[[i]][1:40]) # Still need to print wordclouds
 }
 
 # Scaled plot
@@ -225,7 +225,6 @@ for (i in 1:length(nclusters)){
 my_cosines_scaled <- as.data.frame(my_cosines_scaled)
 y <- my_cosines_scaled[1:length(temp_df), ]
 x <- gather(y, cluster, cosines)
-x
 x$observation <- rep(1:length(temp_df), length(my_cosines_scaled))
 scaled_plot <- ggplot(data = x, aes(x = observation, y = cosines, fill = cluster)) +
   geom_bar(position = "dodge", stat = "identity", width = .75)
@@ -235,7 +234,6 @@ scaled_plot <- ggplot(data = x, aes(x = observation, y = cosines, fill = cluster
 my_cosines <- as.data.frame(my_cosines)
 y <- my_cosines[1:length(temp_df), ]
 x <- gather(y, cluster, cosines)
-x
 x$observation <- rep(1:length(temp_df), length(my_cosines))
 ggplot(data = x, aes(x = observation, y = cosines, fill = cluster)) +
   geom_bar(position = "dodge", stat = "identity", width = .75)
