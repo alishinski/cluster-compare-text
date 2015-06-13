@@ -135,7 +135,7 @@ for (i in seq(length(TDM))){
 
 # Creating a distance matrix 
 
-d <- dist(TDM_common, method = "euclidean")
+d <- dist(t(TDM_common), method = "euclidean")
 
 # Calculating clusters from distance matrix
 
