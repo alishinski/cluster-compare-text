@@ -135,7 +135,7 @@ for (i in seq(length(TDM))){
 
 # Creating a distance matrix 
 
-d <- dist(t(TDM_common), method = "euclidean")
+d <- dist(TDM_common, method = "euclidean")
 
 # Calculating clusters from distance matrix
 
@@ -177,8 +177,8 @@ for (i in seq(length(TDM))){
   
   for (j in seq(dim(TDM_common)[1])){
     
-    if (names(freq_terms[[i]][j]) %in% names(freq_terms[[i]])){
-      group_terms[[i]][j] <- freq_terms[[i]][names(freq_terms[[i]]) == names(freq_terms[[i]][j])]
+    if (names(group_terms[[i]][j]) %in% names(freq_terms[[i]])){
+      group_terms[[i]][j] <- freq_terms[[i]][names(freq_terms[[i]]) == names(group_terms[[i]][j])]
       
     }
     else {
@@ -254,12 +254,12 @@ print(clusters_df)
 
 # Scaled plot
 
-cosines <- as.data.frame(cosines_scaled)
-y <- cosines[1:length(doc_vec), ]
+cosines_scaled <- as.data.frame(cosines_scaled)
+y <- cosines_scaled[1:length(doc_vec), ]
 x <- gather(y, cluster, cosines)
 x$observation <- rep(1:length(doc_vec), length(cosines))
-ggplot(data = x, aes(x = observation, y = cosines, fill = cluster)) +
-geom_bar(position = "dodge", stat = "identity", width = .75)
+# ggplot(data = x, aes(x = observation, y = cosines, fill = cluster)) +
+# geom_bar(position = "dodge", stat = "identity", width = .75)
 
 # Plot
 
