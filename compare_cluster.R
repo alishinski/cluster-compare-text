@@ -2,6 +2,8 @@
 # 1. Setting working directory, loading packages, and loading files
 #-------------------------------------------------------
 
+# Hi Alex!
+  
 # Clearing environment 
 
 rm(list = ls(all = TRUE))
@@ -423,4 +425,3 @@ cos_plot <- gather(cosines_df, cluster, cosines)
 cos_plot$group <- rep(1:length(doc_list), length(cosines_df))
 ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
   geom_bar(position = "dodge", stat = "identity", width = .75)
-
