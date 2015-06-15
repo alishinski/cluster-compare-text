@@ -2,7 +2,7 @@
 # 1. Setting working directory, loading packages, and loading files
 #-------------------------------------------------------
 
-# Clearing environment
+# Clearing environment 
 
 rm(list = ls(all = TRUE))
 
