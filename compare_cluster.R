@@ -410,6 +410,8 @@ cos_plot$group <- rep(1:length(doc_list), length(cosines_df))
 ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
   geom_bar(position = "dodge", stat = "identity", width = .75)
 
+# hello, world
+
 # Scaled plot
 
 # cosines_scaled <- as.data.frame(cosines_scaled)
