@@ -353,7 +353,7 @@ for (i in seq(length(TDM_group))){ ## change this
 
 cosines_df <- as.data.frame(do.call(rbind, cosines_list))
 
-#cosines_scaled <- sapply(cosines, scale)
+cosines_df_scaled <- as.data.frame(sapply(cosines, scale))
 
 # # Creating a list of the most frequent terms in each cluster for word clouds
 # 
@@ -408,19 +408,17 @@ print(cosines_df)
 # ggplot(data = x, aes(x = observation, y = cosines, fill = cluster)) +
 # geom_bar(position = "dodge", stat = "identity", width = .75)
 
-# Plot
-
-cos_plot <- gather(cosines_df, cluster, cosines)
-
+cos_plot <- gather(cosines_df_scaled, cluster, cosines)
 cosines_df_gathered$observation <- rep(1:length(doc_vec), length(cosines))
-
-x$teacher <- rep(1:length(temp_df), length(my_cosines_scaled))
-
 cos_plot$group <- rep(1:length(doc_list), length(cosines_df))
-
 ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
   geom_bar(position = "dodge", stat = "identity", width = .75)
 
-# findAssocs(myTDM_common, )
+# Plot
 
-?cutree
+cos_plot <- gather(cosines_df, cluster, cosines)
+cosines_df_gathered$observation <- rep(1:length(doc_vec), length(cosines))
+cos_plot$group <- rep(1:length(doc_list), length(cosines_df))
+ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
+  geom_bar(position = "dodge", stat = "identity", width = .75)
+
