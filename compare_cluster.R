@@ -2,11 +2,15 @@
 # 1. Setting working directory, loading packages, and loading files
 #-------------------------------------------------------
 
+# Clearing environment
+
+rm(list = ls(all = TRUE))
+
 # Setting working directory
 
-setwd("~/Dropbox/Current Research/scip/Scientific Practices Josh/longitudinal/csv")
+setwd("~/Dropbox/statistics/cluster-compare-text/")
 
-# Loading packages
+# Loading packages - if packages are not already installed, call install.packages() first, e.g. for dplyr install.packages("dplyr")
 
 library(dplyr)
 library(tidyr)
@@ -19,7 +23,7 @@ library(wordcloud)
 
 # Loading data frame
 
-all <- read.csv("all_data.csv")
+all <- read.csv("scip_data.csv")
 
 # Selecting columns of dataframe by question topic
 
@@ -32,7 +36,6 @@ crit <- select(all, criteria, grade, teacher, ID, time)
 
 # Selecting data frame for analysis
 
-str(aud)
 doc_vec <- aud$audience1
 
 #-------------------------------------------------------
@@ -41,7 +44,7 @@ doc_vec <- aud$audience1
 
 # Number of clusters
 
-n_clusters <- 5
+n_clusters <- 6
 
 # Stopwords
 
@@ -49,7 +52,7 @@ n_clusters <- 5
 
 # Custom stopwords
 
-custom_stopwords <- c("lorum ipsum")
+custom_stopwords <- c("thatïûªs") # need to fix - not sure why apostrophes aren't being encoded properly - try to save data again?
 
 # Sparseness of term document matrices (from 0.00 to 1.00)
 
@@ -115,8 +118,8 @@ print(paste("Processed ", length(doc_vec), " documents", sep = ""))
 # 4. For overall term document matrix
 #-------------------------------------------------------
 
-# Creating a term document matrix from the corpus
-
+# Creating a term document matrix from the corpus ## need to fix documents with no text (or earlier)
+ 
 TDM <- TermDocumentMatrix(myCorpus, control = list(weighting = function(x) weightSMART(x, spec = "nnn")))
 
 # Removing sparse terms
@@ -136,14 +139,14 @@ for (i in 1:length(myCorpus)){
   meta(myCorpus[[i]], "time") <- aud$time[i]
 }
 
-# Filter term document matrices by group
+# Filter term document matrices by group ## need to fix - loop these!
 
 # By teacher
 
-index_j <- tm_index(myCorpus, function(x) meta(x, "teacher") == "j")
-index_paul <- tm_index(myCorpus, function(x) meta(x, "teacher") == "paul")
-index_cathy <- tm_index(myCorpus, function(x) meta(x, "teacher") == "cathy")
-index_julie <- tm_index(myCorpus, function(x) meta(x, "teacher") == "julie")
+index_T1 <- tm_index(myCorpus, function(x) meta(x, "teacher") == 1)
+index_T2 <- tm_index(myCorpus, function(x) meta(x, "teacher") == 2)
+index_T3 <- tm_index(myCorpus, function(x) meta(x, "teacher") == 3)
+index_T4 <- tm_index(myCorpus, function(x) meta(x, "teacher") == 4)
 
 # By time
 
@@ -167,33 +170,9 @@ index_DN <- tm_index(myCorpus, function(x) meta(x, "ID") == 301134)
 index_JS <- tm_index(myCorpus, function(x) meta(x, "ID") == 301142)
 index_KH <- tm_index(myCorpus, function(x) meta(x, "ID") == 301212)
 
-# Saving documents based on groups to a list
+# Saving documents based on groups to a list ## need to fix when looped
 
-
-
-# # Creating a list of term document document matrices for each group of corpora 
-# 
-# TDM <- list()
-# 
-# for (i in seq(length(doc_vec))){
-#   TDM[[i]] <- TermDocumentMatrix(corpora_list[[i]], control = list(weighting = weightTfIdf, normalize = TRUE))
-# }
-# 
-# # Concatenating the term document matrices
-# 
-# TDM_all <- myTDM[[1]]
-# 
-# for (i in 2:length(doc_vec)){
-#   TDM_all <- c(TDM_all, TDM[[i]])
-# }
-# 
-# # Removing sparse terms
-# 
-# TDM_common <- removeSparseTerms(TDM_all, sparseness)
-# 
-# # Creating a list of term document document matrices for each group of corpora 
-# 
-# TDM <- TermDocumentMatrix(myCorpus, control = list(weighting = function(x) weightSMART(x, spec = "nnn")))
+doc_list <- list(index_T1, index_T2, index_T3, index_T4)
 
 #-------------------------------------------------------
 # 6. Preparing data for clustering
@@ -205,168 +184,187 @@ index_KH <- tm_index(myCorpus, function(x) meta(x, "ID") == 301212)
 
 doc_len_M <- mean(sort(colSums(as.matrix(TDM_common))))
 doc_len_SD <- sd(sort(colSums(as.matrix(TDM_common))))
+
 plusCI <- doc_len_M + 1.65*(doc_len_SD) # need to change this 
 minusCI <- doc_len_M - 1.65*(doc_len_SD) # need to change this 
 
-# Removes outliers
+# Removes outliers ## need to fix - not a valid method
 
 plusCI_bool <- colSums(as.matrix(TDM_common)) > plusCI
 minusCI_bool <- colSums(as.matrix(TDM_common)) < minusCI
-adjminusCI_bool <- colSums(as.matrix(TDM_common)) < 2 # need to change this 
 
-TDM_common <- TDM_common[, !plusCI_bool]
-TDM_common <- TDM_common[, !adjminusCI_bool]
-TDM_common <- TDM_common[, !minusCI_bool]
+print(sum(plusCI_bool))
+print(sum(minusCI_bool))
 
+adjminusCI_bool <- colSums(as.matrix(TDM_common)) == 0 # need to fix - change this 
+print(sum(adjminusCI_bool))
+
+doc_outliers <- plusCI_bool + minusCI_bool + adjminusCI_bool
+  
 # Creates initial matrix which needs to have deviation vectors calculated
 
-mat <- t(as.matrix(TDM_common))
+mat <- as.matrix(TDM_common) ## need to fix - move?
+
+# Filters initial matrix by boolean vectors to remove document outliers
+
+TDM_cleaned <- TDM_common[, !doc_outliers]
+
+# mat <- mat[, !doc_outliers]
+
+# Filters matrix by boolean vectors to remove term outliers resulting from removing document outliers
+
+term_outliers <- rowSums(as.matrix(TDM_cleaned)) == 0
+
+# mat <- mat[!term_outliers, ]
+
+TDM_cleaned <- TDM_cleaned[!term_outliers, ]
+
+# Finds freq terms for use in deviation vectors
+
+freq_terms <- rowSums(as.matrix(TDM_cleaned))
 
 # Weights by deviation vectors
 
-adj_mat <- matrix(nrow = nrow(mat), ncol = ncol(mat))
-for (i in seq(nrow(mat))){
-  adj_mat[i, ] <- mat[i, ] - freq_terms[[1]] / nrow(mat)
-  adj_mat[i, ] <- adj_mat[i, ] / sum(mat[i, ]) # weights words by proportion in the document - need to change
+mat <- as.matrix(TDM_cleaned)
+
+for (i in seq(ncol(mat))){
+  
+  mat[, i] <- mat[, i] - freq_terms / nrow(mat)
+  
+  #adj_mat[i, ] <- adj_mat[i, ] / sum(adj_mat[i, ]) # weights words by proportion in the document ## need to fix -- change
 }
 
-!~~~~~!!!!! CLUSTERING!!!
+#----------------------------------
+# 7. Clustering and post-processing of clusters
+#-------------------------------------------------------
   
-  # Fits kmeans algorithm
-  
-  #kfit <- kmeans(adj_mat, centers = n_clusters, nstart = 25, iter.max = 1000)
-  
-  kfit <- kmeans(adj_mat, centers = n_clusters)
+# Set seed for reproducibility
+
+set.seed(06132015)
+
+# Fits kmeans algorithm
+
+mat_t <- t(mat)
+
+str(mat_t)
+
+kfit <- kmeans(mat_t, centers = n_clusters) # need to fix - find a way to stablize this - too random
+
+# kfit <- kmeans(adj_mat, centers = n_clusters, nstart = 25, iter.max = 1000) ## need to fix this doesn't help
+
+table(kfit$cluster)
 
 # Creating a list of weighted term document matrices for each cluster
 
 clusters <- list()
-unadj_clusters <- list()
 
 for (i in seq(n_clusters)){
-  clusters[[i]] <- TDM_common[, kfit$cluster == i]
-  unadj_clusters[[i]] <- rowSums(as.matrix(clusters[[i]])) # not sure I need this
-  clusters[[i]] <- rowSums(as.matrix(clusters[[i]])) / table(kfit$cluster)[i]
-}
-
-
-
-
-
-
-
-~~~ OUTPUT AND OUTPUT FOR LATER PROCESSING
-
-# Finds the frequency of terms for each term document matrix ## Need to fix
-
-freq_terms <- list()
-for (i in seq(length(TDM))){
-  freq_terms[[i]] <- rowSums(as.matrix(TDM[[i]])) # Need to output this
+  clusters[[i]] <- TDM_cleaned[, kfit$cluster == i]
 }
 
 # Creating an ordered list of clusters
 
 ordered_clusters <- list()
+cluster_freqs <- list()
 clusters_df <- matrix(nrow = 10, ncol = n_clusters)
 
 for (i in seq(length(clusters))){
-  ordered_clusters[[i]] <- sort(clusters[[i]], decreasing = TRUE)
-  clusters_df[, i] <- names(ordered_clusters[[i]][1:10])
+  ordered_clusters[[i]] <- rowSums(as.matrix(clusters[[i]]) / ncol(clusters[[i]]))
+  cluster_freqs[[i]] <- ordered_clusters[[i]]
+  ordered_clusters[[i]] <- names(sort(ordered_clusters[[i]], decreasing = TRUE))
+  clusters_df[, i] <- ordered_clusters[[i]][1:10]
 }
 
 clusters_df <- as.data.frame(clusters_df)
 colnames(clusters_df) <- paste("Cluster ", c(seq(n_clusters)), sep="")
 
-### Creating an adjusted (by relevance) ordered list of clusters
+### Creating an adjusted (by relevance) ordered list of clusters ## need to fix - this is not working (I think because of freq_terms)
 
-my_list <- list()
+adjordered_clusters <- list()
 adjclusters_df <- matrix(nrow = 10, ncol = n_clusters)
 
 for (i in seq(length(clusters))){
-  
-  my_list[[i]] <- clusters[[i]] - freq_terms[[1]] / nrow(mat)
-  my_list[[i]] <- sort(my_list[[i]], decreasing = TRUE)
-  adjclusters_df[, i] <- names(my_list[[i]][1:10])
-  
+  adjordered_clusters[[i]] <- rowSums(as.matrix(clusters[[i]]) / ncol(clusters[[i]]))
+  adjordered_clusters[[i]] <- adjordered_clusters[[i]] - freq_terms / length(freq_terms)
+  adjordered_clusters[[i]] <- names(sort(adjordered_clusters[[i]], decreasing = TRUE))
+  adjclusters_df[, i] <- adjordered_clusters[[i]][1:10]
 }
 
 adjclusters_df <- as.data.frame(adjclusters_df)
 colnames(adjclusters_df) <- paste("Cluster ", c(seq(n_clusters)), sep="")
 
+#-------------------------------------------------------
+# 8. Output for further processing and general output
+#-------------------------------------------------------
 
-~~~~!!!! PREPARING INDIVIDUAL TERM DOCUMENT MATRICES FOR COMPARISONS!!! AND FREQUENCIES!!!
-  
-  # Creating vectors "terms" for each item in entered list 
-  
-  freq_terms <- list()
-for (i in seq(length(TDM))){
-  freq_terms[[i]] <- rowSums(as.matrix(TDM[[i]])) # Need to output this
+# Filter out outliers from group booleans using outlier booleans
+
+plusCI <- !plusCI_bool
+minusCI <- !minusCI_bool
+adjminusCI <- !adjminusCI_bool
+
+doc_list_cleaned <- list()
+
+for (i in seq(doc_list)){
+  doc_list_cleaned[[i]] <- doc_list[[i]] & plusCI & minusCI & adjminusCI
 }
 
-inspect(TDM[1:10, 1:10])
+# Creates groups from TDM_common using group booleans 
 
-meta(myCorpus[[1]])
-meta(TDM[[,1]])
+TDM_group <- list()
 
-?Corpus
+for (i in seq(doc_list)){
+  TDM_group[[i]] <- TDM_cleaned[, doc_list_cleaned[[i]]]
+}
 
-group_terms <- list()
+# Calculates term frequencies for each group 
 
-for (i in seq(length(TDM))){
-  
-  group_terms[[i]] <- vector(length = dim(TDM_common)[1])
-  names(group_terms[[i]]) <- TDM_common[["dimnames"]][["Terms"]]
-  
-  for (j in seq(dim(TDM_common)[1])){
-    
-    if (names(group_terms[[i]][j]) %in% names(freq_terms[[1]])){
-      group_terms[[i]][j] <- freq_terms[[i]][names(freq_terms[[i]]) == names(group_terms[[i]][j])]
-      
-    }
-    else {
-      group_terms[[i]][j] <- 0
-      
-    }
-  }
+group_freqs <- list()
+
+for (i in seq(doc_list)){
+  group_freqs[[i]] <- rowSums(as.matrix(TDM_group[[i]])) / ncol(TDM_group[[i]]) # Need to fix - will want to add group freqs
 }
 
 #-------------------------------------------------------
-# 5. Calculating similarities
+# 9. Calculating similarities
 #-------------------------------------------------------
+
+str(group_freqs)
+str(cluster_freqs)
 
 # Computing similarities  
 
-term_cosines_list <- list()
-term_cosines <- list()
+cosines <- list()
+cosines_list <- list()
 
-for (i in seq(length(TDM))){ ## change this
+for (i in seq(length(TDM_group))){ ## change this
   
-  term_cosines[[i]] <- vector()
+  cosines[[i]] <- vector()
   
   for (j in seq(length(clusters))){
     
-    term_cosines[[i]] <- append(term_cosines[[i]], cosine(group_terms[[i]], clusters[[j]]))
+    cosines[[i]] <- append(cosines[[i]], cosine(group_freqs[[i]], cluster_freqs[[j]]))
     
   }
-  
-  term_cosines_list[[i]] <- term_cosines[[i]]
+  cosines_list[[i]] <- cosines[[i]]
 }
 
 # Creating data frame and scaled data frame
 
-cosines <- as.data.frame(do.call(rbind, term_cosines_list))
-cosines_scaled <- sapply(cosines, scale)
+cosines_df <- as.data.frame(do.call(rbind, cosines_list))
 
-# Creating a list of the most frequent terms in each cluster for word clouds
+#cosines_scaled <- sapply(cosines, scale)
 
-ordered_clusters <- list()
-for (i in seq(length(clusters))){
-  ordered_clusters[[i]] <- sort(clusters[[i]], decreasing = TRUE)
-}
-
-# For wordclouds 
-
-wc <- ordered_clusters
+# # Creating a list of the most frequent terms in each cluster for word clouds
+# 
+# ordered_clusters <- list()
+# for (i in seq(length(clusters))){
+#   ordered_clusters[[i]] <- sort(clusters[[i]], decreasing = TRUE)
+# }
+# 
+# # For wordclouds 
+# 
+# wc <- ordered_clusters
 
 #-------------------------------------------------------
 # 6. Output
@@ -374,11 +372,11 @@ wc <- ordered_clusters
 
 # Terms in term document matrix 
 
-print(TDM)
+# print(TDM)
 
 # Terms in term document matrix with sparse terms removed
 
-print(TDM_common)
+# print(TDM_common)
 
 # Number of documents in each cluster
 
@@ -388,6 +386,10 @@ print(table(kfit$cluster))
 
 print(clusters_df)
 print(adjclusters_df)
+
+# Cosines
+
+print(cosines_df)
 
 # Wordclouds ## need to fix
 
@@ -408,11 +410,15 @@ print(adjclusters_df)
 
 # Plot
 
-cosines <- as.data.frame(cosines)
-y <- cosines[1:length(doc_vec), ]
-x <- gather(y, cluster, cosines)
-x$observation <- rep(1:length(doc_vec), length(cosines))
-ggplot(data = x, aes(x = observation, y = cosines, fill = cluster)) +
+cos_plot <- gather(cosines_df, cluster, cosines)
+
+cosines_df_gathered$observation <- rep(1:length(doc_vec), length(cosines))
+
+x$teacher <- rep(1:length(temp_df), length(my_cosines_scaled))
+
+cos_plot$group <- rep(1:length(doc_list), length(cosines_df))
+
+ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
   geom_bar(position = "dodge", stat = "identity", width = .75)
 
 # findAssocs(myTDM_common, )
