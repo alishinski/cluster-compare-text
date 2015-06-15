@@ -367,7 +367,7 @@ cosines_df <- as.data.frame(do.call(rbind, cosines_list))
 # wc <- ordered_clusters
 
 #-------------------------------------------------------
-# 6. Output
+# 10. Output
 #-------------------------------------------------------
 
 # Terms in term document matrix 
