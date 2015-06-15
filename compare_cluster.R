@@ -2,9 +2,6 @@
 # 1. Setting working directory, loading packages, and loading files
 #-------------------------------------------------------
 
-# Hi Alex!
-# Hi Josh!
-  
 # Clearing environment 
 
 rm(list = ls(all = TRUE))
@@ -422,11 +419,10 @@ ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
 # ggplot(data = x, aes(x = observation, y = cosines, fill = cluster)) +
 # geom_bar(position = "dodge", stat = "identity", width = .75)
 
-cos_plot <- gather(cosines_df_scaled, cluster, cosines)
-cos_plot$group <- rep(1:length(doc_list), length(cosines_df))
-ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
-<<<<<<< Updated upstream
-  geom_bar(position = "dodge", stat = "identity", width = .75)
+# cos_plot <- gather(cosines_df_scaled, cluster, cosines)
+# cos_plot$group <- rep(1:length(doc_list), length(cosines_df))
+# ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
+#   geom_bar(position = "dodge", stat = "identity", width = .75)
 
 # Plot
 
@@ -434,6 +430,3 @@ cos_plot <- gather(cosines_df, cluster, cosines)
 cos_plot$group <- rep(1:length(doc_list), length(cosines_df))
 ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
   geom_bar(position = "dodge", stat = "identity", width = .75)
-=======
-  geom_bar(position = "dodge", stat = "identity", width = .75)
->>>>>>> Stashed changes
