@@ -27,7 +27,7 @@ all <- read.csv("scip_data.csv")
 
 # Selecting columns of dataframe by question topic
 
-aud <- select(all, audience1, grade, teacher, ID, time)
+aud1 <- select(all, audience1, grade, teacher, ID, time)
 aud2 <- select(all, audience2, grade, teacher, ID, time)
 gen <- select(all, generality, grade, teacher, ID, time)
 evid <- select(all, evidence, grade, teacher, ID, time)
@@ -36,7 +36,7 @@ crit <- select(all, criteria, grade, teacher, ID, time)
 
 # Selecting data frame for analysis
 
-doc_vec <- aud$audience1
+doc_vec <- evid$evidence
 
 #-------------------------------------------------------
 # 2. Variables to modify
@@ -44,7 +44,7 @@ doc_vec <- aud$audience1
 
 # Number of clusters
 
-n_clusters <- 6
+n_clusters <- 5
 
 # Stopwords
 
@@ -56,7 +56,7 @@ custom_stopwords <- c("thatïûªs") # need to fix - not sure why apostrophes ar
 
 # Sparseness of term document matrices (from 0.00 to 1.00)
 
-sparseness <- .999 ## is there a way to improve this to make it more intuitive? currently, lower sparseness leads to more terms
+sparseness <- .995 ## is there a way to improve this to make it more intuitive? currently, lower sparseness leads to more terms
 
 # Weighting of terms in term document matrices (weightTF, weightTfIdf, or weightBin)
 
@@ -133,10 +133,10 @@ TDM_common <- removeSparseTerms(TDM, sparseness)
 # Name documents ## Specific to scip data
 
 for (i in 1:length(myCorpus)){
-  meta(myCorpus[[i]], "teacher") <- aud$teacher[i]
-  meta(myCorpus[[i]], "grade") <- aud$grade[i]
-  meta(myCorpus[[i]], "ID") <- aud$ID[i]
-  meta(myCorpus[[i]], "time") <- aud$time[i]
+  meta(myCorpus[[i]], "teacher") <- aud1$teacher[i]
+  meta(myCorpus[[i]], "grade") <- aud1$grade[i]
+  meta(myCorpus[[i]], "ID") <- aud1$ID[i]
+  meta(myCorpus[[i]], "time") <- aud1$time[i]
 }
 
 # Filter term document matrices by group ## need to fix - loop these!
@@ -172,11 +172,19 @@ index_KH <- tm_index(myCorpus, function(x) meta(x, "ID") == 301212)
 
 # Saving documents based on groups to a list ## need to fix when looped
 
-Teachers
-doc_list <- list(index_T1, index_T2, index_T3, index_T4)
+# Teachers
+# doc_list <- list(index_T1, index_T2, index_T3, index_T4)
 
 # # Time
-# doc_list <- list (index_1, index_2, index_3, index_4, index_5, index_6)
+doc_list <- list(index_1, index_2, index_3, index_4, index_5, index_6)
+
+# Grade
+
+# doc_list <- list (index_grade5, index_grade6)
+
+# Students
+
+# doc_list <- list(index_MC, index_AD, index_DN, index_JS, index_KH)
 
 #-------------------------------------------------------
 # 6. Preparing data for clustering
@@ -200,7 +208,7 @@ minusCI_bool <- colSums(as.matrix(TDM_common)) < minusCI
 print(sum(plusCI_bool))
 print(sum(minusCI_bool))
 
-adjminusCI_bool <- colSums(as.matrix(TDM_common)) == 0 # need to fix - change this 
+adjminusCI_bool <- colSums(as.matrix(TDM_common)) <= 1 # need to fix - change this 
 print(sum(adjminusCI_bool))
 
 doc_outliers <- plusCI_bool + minusCI_bool + adjminusCI_bool
@@ -234,8 +242,7 @@ mat <- as.matrix(TDM_cleaned)
 for (i in seq(ncol(mat))){
   
   mat[, i] <- mat[, i] - freq_terms / nrow(mat)
-  
-  #adj_mat[i, ] <- adj_mat[i, ] / sum(adj_mat[i, ]) # weights words by proportion in the document ## need to fix -- change
+  #mat[, i ] <- mat[, i] / colSums(as.matrix(TDM_cleaned))[i] # weights words by proportion in the document ## need to fix -- change
 }
 
 #----------------------------------
@@ -249,8 +256,6 @@ set.seed(06132015)
 # Fits kmeans algorithm
 
 mat_t <- t(mat)
-
-str(mat_t)
 
 kfit <- kmeans(mat_t, centers = n_clusters) # need to fix - find a way to stablize this - too random
 
@@ -356,8 +361,10 @@ for (i in seq(length(TDM_group))){ ## change this
 # Creating data frame and scaled data frame
 
 cosines_df <- as.data.frame(do.call(rbind, cosines_list))
-
-cosines_df_scaled <- as.data.frame(sapply(cosines, scale))
+cosines_df
+# cosines_df
+cosines_df_scaled <- as.data.frame(sapply(cosines_df, scale))
+cosines_df_scaled
 
 # # Creating a list of the most frequent terms in each cluster for word clouds
 # 
@@ -421,14 +428,27 @@ ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
 # ggplot(data = x, aes(x = observation, y = cosines, fill = cluster)) +
 # geom_bar(position = "dodge", stat = "identity", width = .75)
 
-# cos_plot <- gather(cosines_df_scaled, cluster, cosines)
-# cos_plot$group <- rep(1:length(doc_list), length(cosines_df))
-# ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
-#   geom_bar(position = "dodge", stat = "identity", width = .75)
+print(adjclusters_df)
+print(table(kfit$cluster))
+print(TDM)
+print(TDM_common)
 
-# Plot
-
-cos_plot <- gather(cosines_df, cluster, cosines)
+cos_plot <- gather(cosines_df_scaled, cluster, cosines)
 cos_plot$group <- rep(1:length(doc_list), length(cosines_df))
 ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
   geom_bar(position = "dodge", stat = "identity", width = .75)
+# Plot
+# 
+# cos_plot <- gather(cosines_df, cluster, cosines)
+# cos_plot$group <- rep(1:length(doc_list), length(cosines_df))
+# ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
+#   geom_bar
+
+# Interesting results
+
+# audience2, 4 clusters or 5 clusters
+# audience1, 5 clusters, .995 sparseness
+# criteria, 4 clusters, .995 sparseness
+# generality, 7 clusters
+# purpose, 4 or 5 clusters
+# need to fix evidence 
