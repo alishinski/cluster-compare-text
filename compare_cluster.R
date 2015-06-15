@@ -172,7 +172,11 @@ index_KH <- tm_index(myCorpus, function(x) meta(x, "ID") == 301212)
 
 # Saving documents based on groups to a list ## need to fix when looped
 
-doc_list <- list(index_T1, index_T2, index_T3, index_T4)
+# Teachers
+# doc_list <- list(index_T1, index_T2, index_T3, index_T4)
+
+# Time
+doc_list <- list (index_1, index_2, index_3, index_4, index_5, index_6)
 
 #-------------------------------------------------------
 # 6. Preparing data for clustering
@@ -409,7 +413,6 @@ print(cosines_df)
 # geom_bar(position = "dodge", stat = "identity", width = .75)
 
 cos_plot <- gather(cosines_df_scaled, cluster, cosines)
-cosines_df_gathered$observation <- rep(1:length(doc_vec), length(cosines))
 cos_plot$group <- rep(1:length(doc_list), length(cosines_df))
 ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
   geom_bar(position = "dodge", stat = "identity", width = .75)
@@ -417,7 +420,6 @@ ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
 # Plot
 
 cos_plot <- gather(cosines_df, cluster, cosines)
-cosines_df_gathered$observation <- rep(1:length(doc_vec), length(cosines))
 cos_plot$group <- rep(1:length(doc_list), length(cosines_df))
 ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
   geom_bar(position = "dodge", stat = "identity", width = .75)
