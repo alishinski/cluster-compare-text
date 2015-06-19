@@ -190,6 +190,23 @@ doc_list <- list(index_1, index_2, index_3, index_4, index_5, index_6)
 # 6. Preparing data for clustering
 #-------------------------------------------------------
 
+library(ppls)
+
+dev_vector <- function(vect_list){
+        norm_vects <- lapply(vect_list, normalize.vector)
+        sum_vect <- sum(do.call(rbind, norm_vects))
+        norm_sum <- normalize.vector(sum_vect)
+        projects <- lapply(norm_vects, vect_project, norm_sum)
+        difference <- mapply('-', norm_vects, projects)
+        dev_vects <-  apply(difference, MARGIN = 2, FUN = normalize.vector)
+        dev_vects
+}
+
+vect_project <- function(a,b){
+        project <- crossprod(a,b) * b
+        project
+}
+
 # Removing outliers
 
 # Creates booleans for outliers
