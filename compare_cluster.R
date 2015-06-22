@@ -20,23 +20,33 @@ library(lsa)
 library(cluster)
 library(ggplot2)
 library(wordcloud)
+library(ppls)
 
 # Loading data frame
 
 all <- read.csv("scip_data.csv")
 
+#data$async <- iconv(data$async, "macintosh", "UTF-8")
+
+# all <- lapply(all, function(x) iconv(x, "macintosh", "UTF-8"))
+
 # Selecting columns of dataframe by question topic
 
-aud1 <- select(all, audience1, grade, teacher, ID, time)
-aud2 <- select(all, audience2, grade, teacher, ID, time)
-gen <- select(all, generality, grade, teacher, ID, time)
-evid <- select(all, evidence, grade, teacher, ID, time)
-purp <- select(all, purpose, grade, teacher, ID, time)
-crit <- select(all, criteria, grade, teacher, ID, time)
+aud1 <- select(all, audience1, grade, teacher, ID, time, T1, T2, T3, T4, S1, S2, S3, S4, S5)
+aud2 <- select(all, audience2, grade, teacher, ID, time, T1, T2, T3, T4, S1, S2, S3, S4, S5)
+gen <- select(all, generality, grade, teacher, ID, time, T1, T2, T3, T4, S1, S2, S3, S4, S5)
+evid <- select(all, evidence, grade, teacher, ID, time, T1, T2, T3, T4, S1, S2, S3, S4, S5)
+purp <- select(all, purpose, grade, teacher, ID, time, T1, T2, T3, T4, S1, S2, S3, S4, S5)
+crit <- select(all, criteria, grade, teacher, ID, time, T1, T2, T3, T4, S1, S2, S3, S4, S5)
 
 # Selecting data frame for analysis
 
-doc_vec <- evid$evidence
+doc_vec <- aud1$audience1
+# doc_vec <- aud2$audience2
+# doc_vec <- gen$generality
+# doc_vec <- evid$evidence
+# doc_vec <- purp$purpose
+# doc_vec <- crit$criteria
 
 #-------------------------------------------------------
 # 2. Variables to modify
@@ -44,7 +54,7 @@ doc_vec <- evid$evidence
 
 # Number of clusters
 
-n_clusters <- 5
+n_clusters <- 7
 
 # Stopwords
 
@@ -52,7 +62,7 @@ n_clusters <- 5
 
 # Custom stopwords
 
-custom_stopwords <- c("thatïûªs") # need to fix - not sure why apostrophes aren't being encoded properly - try to save data again?
+custom_stopwords <- c("lorum ipsum") # need to fix - not sure why apostrophes aren't being encoded properly - try to save data again?
 
 # Sparseness of term document matrices (from 0.00 to 1.00)
 
@@ -137,6 +147,17 @@ for (i in 1:length(myCorpus)){
   meta(myCorpus[[i]], "grade") <- aud1$grade[i]
   meta(myCorpus[[i]], "ID") <- aud1$ID[i]
   meta(myCorpus[[i]], "time") <- aud1$time[i]
+  
+  meta(myCorpus[[i]], "T1") <- aud1$T1[i]
+  meta(myCorpus[[i]], "T2") <- aud1$T2[i]
+  meta(myCorpus[[i]], "T3") <- aud1$T3[i]
+  meta(myCorpus[[i]], "T4") <- aud1$T4[i]
+  
+  meta(myCorpus[[i]], "S1") <- aud1$S1[i]
+  meta(myCorpus[[i]], "S2") <- aud1$S2[i]
+  meta(myCorpus[[i]], "S3") <- aud1$S3[i]
+  meta(myCorpus[[i]], "S4") <- aud1$S4[i]
+  meta(myCorpus[[i]], "S5") <- aud1$S5[i]
 }
 
 # Filter term document matrices by group ## need to fix - loop these!
@@ -157,26 +178,111 @@ index_4 <- tm_index(myCorpus, function(x) meta(x, "time") == 4)
 index_5 <- tm_index(myCorpus, function(x) meta(x, "time") == 5)
 index_6 <- tm_index(myCorpus, function(x) meta(x, "time") == 6)
 
+# By teacher by time ## Need to fix
+
+# T1
+
+T1Xtime1 <- tm_index(myCorpus, function(x) meta (x, "T1") == 1)
+T1Xtime2 <- tm_index(myCorpus, function(x) meta (x, "T1") == 2)
+T1Xtime3 <- tm_index(myCorpus, function(x) meta (x, "T1") == 3)
+
+# T2
+
+T2Xtime1 <- tm_index(myCorpus, function(x) meta (x, "T2") == 1)
+T2Xtime2 <- tm_index(myCorpus, function(x) meta (x, "T2") == 2)
+T2Xtime3 <- tm_index(myCorpus, function(x) meta (x, "T2") == 3)
+
+# T3
+
+T3Xtime1 <- tm_index(myCorpus, function(x) meta (x, "T3") == 1)
+T3Xtime2 <- tm_index(myCorpus, function(x) meta (x, "T3") == 2)
+T3Xtime3 <- tm_index(myCorpus, function(x) meta (x, "T3") == 3)
+
+# T4
+
+T4Xtime1 <- tm_index(myCorpus, function(x) meta (x, "T4") == 1)
+T4Xtime2 <- tm_index(myCorpus, function(x) meta (x, "T4") == 2)
+T4Xtime3 <- tm_index(myCorpus, function(x) meta (x, "T4") == 3)
+
+indexT1Xtime <- list(T1Xtime1, T1Xtime2, T1Xtime3)
+indexT2Xtime <- list(T2Xtime1, T2Xtime2, T2Xtime3)
+
 # By grade
 
 index_grade5 <- tm_index(myCorpus, function(x) meta(x, "grade") == 5)
 index_grade6 <- tm_index(myCorpus, function(x) meta(x, "grade") == 6)
 
-# By id # Need to fix
+# Student by time
 
-index_MC <- tm_index(myCorpus, function(x) meta(x, "ID") == 301120) 
-index_AD <- tm_index(myCorpus, function(x) meta(x, "ID") == 301181)
-index_DN <- tm_index(myCorpus, function(x) meta(x, "ID") == 301134)
-index_JS <- tm_index(myCorpus, function(x) meta(x, "ID") == 301142)
-index_KH <- tm_index(myCorpus, function(x) meta(x, "ID") == 301212)
+# S1
+
+S1Xtime1 <- tm_index(myCorpus, function(x) meta (x, "S1") == 1)
+S1Xtime2 <- tm_index(myCorpus, function(x) meta (x, "S1") == 2)
+S1Xtime3 <- tm_index(myCorpus, function(x) meta (x, "S1") == 3)
+S1Xtime4 <- tm_index(myCorpus, function(x) meta (x, "S1") == 4)
+S1Xtime5 <- tm_index(myCorpus, function(x) meta (x, "S1") == 5)
+S1Xtime6 <- tm_index(myCorpus, function(x) meta (x, "S1") == 6)
+
+# S2
+
+S2Xtime1 <- tm_index(myCorpus, function(x) meta (x, "S2") == 1)
+S2Xtime2 <- tm_index(myCorpus, function(x) meta (x, "S2") == 2)
+S2Xtime3 <- tm_index(myCorpus, function(x) meta (x, "S2") == 3)
+S2Xtime4 <- tm_index(myCorpus, function(x) meta (x, "S2") == 4)
+S2Xtime5 <- tm_index(myCorpus, function(x) meta (x, "S2") == 5)
+S2Xtime6 <- tm_index(myCorpus, function(x) meta (x, "S2") == 6)
+
+# S3
+
+S3Xtime1 <- tm_index(myCorpus, function(x) meta (x, "S3") == 1)
+S3Xtime2 <- tm_index(myCorpus, function(x) meta (x, "S3") == 2)
+S3Xtime3 <- tm_index(myCorpus, function(x) meta (x, "S3") == 3)
+S3Xtime4 <- tm_index(myCorpus, function(x) meta (x, "S3") == 4)
+S3Xtime5 <- tm_index(myCorpus, function(x) meta (x, "S3") == 5)
+S3Xtime6 <- tm_index(myCorpus, function(x) meta (x, "S3") == 6)
+
+# S4
+
+S4Xtime1 <- tm_index(myCorpus, function(x) meta (x, "S4") == 1)
+S4Xtime2 <- tm_index(myCorpus, function(x) meta (x, "S4") == 2)
+S4Xtime3 <- tm_index(myCorpus, function(x) meta (x, "S4") == 3)
+S4Xtime4 <- tm_index(myCorpus, function(x) meta (x, "S4") == 4)
+S4Xtime5 <- tm_index(myCorpus, function(x) meta (x, "S4") == 5)
+S4Xtime6 <- tm_index(myCorpus, function(x) meta (x, "S4") == 6)
+
+# S5
+
+S5Xtime1 <- tm_index(myCorpus, function(x) meta (x, "S5") == 1)
+S5Xtime2 <- tm_index(myCorpus, function(x) meta (x, "S5") == 2)
+S5Xtime3 <- tm_index(myCorpus, function(x) meta (x, "S5") == 3)
+S5Xtime4 <- tm_index(myCorpus, function(x) meta (x, "S5") == 4)
+S5Xtime5 <- tm_index(myCorpus, function(x) meta (x, "S5") == 5)
+S5Xtime6 <- tm_index(myCorpus, function(x) meta (x, "S5") == 6)
+
 
 # Saving documents based on groups to a list ## need to fix when looped
 
+# Student  
+
+# index_MC <- tm_index(myCorpus, function(x) meta(x, "ID") == 301120) 
+# index_AD <- tm_index(myCorpus, function(x) meta(x, "ID") == 301181)
+# index_DN <- tm_index(myCorpus, function(x) meta(x, "ID") == 301134)
+# index_JS <- tm_index(myCorpus, function(x) meta(x, "ID") == 301142)
+# index_KH <- tm_index(myCorpus, function(x) meta(x, "ID") == 301212)
+
+S3Xtime1 <- tm_index(myCorpus, function(x) meta (x, "S3") == 1)
+
+index_MC <- list(S1Xtime1, S1Xtime2, S1Xtime3, S1Xtime4, S1Xtime5, S1Xtime6)
+index_AD <- list(S2Xtime1, S2Xtime2, S2Xtime3, S2Xtime4, S2Xtime5, S2Xtime6)
+index_DN <- list(S3Xtime1, S3Xtime2, S3Xtime3, S3Xtime4, S3Xtime5, S3Xtime6)
+index_JS <- list(S4Xtime1, S4Xtime2, S4Xtime3, S4Xtime4, S4Xtime5, S4Xtime6)
+index_KH <- list(S5Xtime1, S5Xtime2, S5Xtime3, S5Xtime4, S5Xtime5, S5Xtime6)
+
 # Teachers
-# doc_list <- list(index_T1, index_T2, index_T3, index_T4)
+teachers <- list(index_T1, index_T2, index_T3, index_T4)
 
 # # Time
-doc_list <- list(index_1, index_2, index_3, index_4, index_5, index_6)
+time <- list(index_1, index_2, index_3, index_4, index_5, index_6)
 
 # Grade
 
@@ -186,26 +292,13 @@ doc_list <- list(index_1, index_2, index_3, index_4, index_5, index_6)
 
 # doc_list <- list(index_MC, index_AD, index_DN, index_JS, index_KH)
 
+# Selecting doc_list
+
+doc_list <- teachers
+
 #-------------------------------------------------------
 # 6. Preparing data for clustering
 #-------------------------------------------------------
-
-library(ppls)
-
-dev_vector <- function(vect_list){
-        norm_vects <- lapply(vect_list, normalize.vector)
-        sum_vect <- sum(do.call(rbind, norm_vects))
-        norm_sum <- normalize.vector(sum_vect)
-        projects <- lapply(norm_vects, vect_project, norm_sum)
-        difference <- mapply('-', norm_vects, projects)
-        dev_vects <-  apply(difference, MARGIN = 2, FUN = normalize.vector)
-        dev_vects
-}
-
-vect_project <- function(a,b){
-        project <- crossprod(a,b) * b
-        project
-}
 
 # Removing outliers
 
@@ -256,11 +349,31 @@ freq_terms <- rowSums(as.matrix(TDM_cleaned))
 
 mat <- as.matrix(TDM_cleaned)
 
-for (i in seq(ncol(mat))){
-  
-  mat[, i] <- mat[, i] - freq_terms / nrow(mat)
-  #mat[, i ] <- mat[, i] / colSums(as.matrix(TDM_cleaned))[i] # weights words by proportion in the document ## need to fix -- change
+# Processing data for vectors
+
+mat_list <- apply(mat, 2, list)
+
+# Functions for deviation vectors
+
+vect_project <- function(a,b){
+  project <- crossprod(a,b) * b
+  project
 }
+
+dev_vector <- function(vect_list){
+  norm_vects <- lapply(vect_list, normalize.vector)
+  sum_vect <- colSums(do.call(rbind, norm_vects))
+  norm_sum <- normalize.vector(sum_vect)
+  projects <- lapply(norm_vects, vect_project, norm_sum)
+  difference <- mapply('-', norm_vects, projects)
+  dev_vects <-  apply(difference, MARGIN = 2, FUN = normalize.vector)
+  dev_vects
+}
+
+# Calculating deviation vectors
+
+mat_vec <- lapply(mat_list, unlist)
+mat_dev <- dev_vector(mat_vec)
 
 #----------------------------------
 # 7. Clustering and post-processing of clusters
@@ -270,15 +383,44 @@ for (i in seq(ncol(mat))){
 
 set.seed(06132015)
 
+# Calculating number of clusters
+
+wss <- (nrow(mat)- 1) * sum(apply(mat, 2, var)) # need to change
+for (i in 2:18) wss[i] <- sum(kmeans(mat,
+                                     centers=i)$withinss)
+plot(1:18, wss, type="b", xlab="Number of Clusters",
+     ylab="Within groups sum of squares")
+
+
 # Fits kmeans algorithm
 
-mat_t <- t(mat)
+mat_dev_t <- t(mat_dev)
 
-kfit <- kmeans(mat_t, centers = n_clusters) # need to fix - find a way to stablize this - too random
+kfit <- kmeans(mat_dev_t, centers = n_clusters) # need to fix - find a way to stablize this - too random
+
+kfit$tot.withinss
+kfit$totss
+kfit$wit
+
+# Need to fix - compare this to euclidean distance
+
+# cos.sim <- function(ix) 
+# {
+#   A = X[ix[1],]
+#   B = X[ix[2],]
+#   return( sum(A*B)/sqrt(sum(A^2)*sum(B^2)) )
+# }   
+# n <- nrow(X) 
+# cmb <- expand.grid(i=1:n, j=1:n) 
+# C <- matrix(apply(cmb,1,cos.sim),n,n)
 
 # kfit <- kmeans(adj_mat, centers = n_clusters, nstart = 25, iter.max = 1000) ## need to fix this doesn't help
 
-table(kfit$cluster)
+# table(kfit$cluster)
+# kfit$tot.withinss
+# kfit$withinss
+# kfit$betweenss
+# kfit$totss
 
 # Creating a list of weighted term document matrices for each cluster
 
@@ -333,6 +475,7 @@ doc_list_cleaned <- list()
 
 for (i in seq(doc_list)){
   doc_list_cleaned[[i]] <- doc_list[[i]] & plusCI & minusCI & adjminusCI
+  print(table(doc_list_cleaned[[i]]))
 }
 
 # Creates groups from TDM_common using group booleans 
@@ -354,9 +497,6 @@ for (i in seq(doc_list)){
 #-------------------------------------------------------
 # 9. Calculating similarities
 #-------------------------------------------------------
-
-str(group_freqs)
-str(cluster_freqs)
 
 # Computing similarities  
 
@@ -413,6 +553,7 @@ print(table(kfit$cluster))
 # 10 most frequently included terms in each cluster and adjusted terms
 
 print(clusters_df)
+print(table(kfit$cluster))
 print(adjclusters_df)
 
 # Cosines
@@ -434,12 +575,6 @@ cos_plot$group <- rep(1:length(doc_list), length(cosines_df))
 ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
   geom_bar(position = "dodge", stat = "identity", width = .75)
 
-<<<<<<< HEAD
-# hello, world
-=======
-# Testing 
->>>>>>> josh
-
 # Scaled plot
 
 # cosines_scaled <- as.data.frame(cosines_scaled)
@@ -449,27 +584,33 @@ ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
 # ggplot(data = x, aes(x = observation, y = cosines, fill = cluster)) +
 # geom_bar(position = "dodge", stat = "identity", width = .75)
 
-print(adjclusters_df)
-print(table(kfit$cluster))
-print(TDM)
-print(TDM_common)
+# For teachers
 
-cos_plot <- gather(cosines_df_scaled, cluster, cosines)
+cos_plot <- gather(cosines_df_scaled, Cluster, cosines)
+
+cos_plot$group <- rep(c("1_J", "2_Paul", "3_Cathy", "4_Julie"), length(cosines_df_scaled))
+
+ggplot(data = cos_plot, aes(x = group, y = cosines, fill = Cluster)) +
+  geom_bar(position = "dodge", stat = "identity", width = .75) +
+  xlab("Teacher") +
+  ylab("Cosines (z-score)") +
+  ggtitle("Convincing audience cosines (z-score) by teachers")
+
+# For time
+
+cos_plot <- gather(cosines_df_scaled, Cluster, cosines)
+
 cos_plot$group <- rep(1:length(doc_list), length(cosines_df))
-ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
-  geom_bar(position = "dodge", stat = "identity", width = .75)
+
+ggplot(data = cos_plot, aes(x = group, y = cosines, fill = Cluster)) +
+  geom_bar(position = "dodge", stat = "identity", width = .75) +
+  xlab("Time") +
+  ylab("Cosines (z-score)") +
+  ggtitle("Purpose cosines (z-score) by time")
+
 # Plot
 # 
 # cos_plot <- gather(cosines_df, cluster, cosines)
 # cos_plot$group <- rep(1:length(doc_list), length(cosines_df))
 # ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
 #   geom_bar
-
-# Interesting results
-
-# audience2, 4 clusters or 5 clusters
-# audience1, 5 clusters, .995 sparseness
-# criteria, 4 clusters, .995 sparseness
-# generality, 7 clusters
-# purpose, 4 or 5 clusters
-# need to fix evidence 
