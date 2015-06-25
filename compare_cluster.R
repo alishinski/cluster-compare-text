@@ -308,8 +308,8 @@ doc_list <- teachers
 doc_len_M <- mean(sort(colSums(as.matrix(TDM_common))))
 doc_len_SD <- sd(sort(colSums(as.matrix(TDM_common))))
 
-plusCI <- doc_len_M + 1.65*(doc_len_SD) # need to change this 
-minusCI <- doc_len_M - 1.65*(doc_len_SD) # need to change this 
+plusCI <- doc_len_M + 3.00*(doc_len_SD) # need to change this 
+minusCI <- doc_len_M - 3.00*(doc_len_SD) # need to change this 
 
 # Removes outliers ## need to fix - not a valid method
 
@@ -392,67 +392,26 @@ for (i in 2:18) wss[i] <- sum(kmeans(mat,
 plot(1:18, wss, type="b", xlab="Number of Clusters",
      ylab="Within groups sum of squares")
 
-# Fits Ward's 
-
-??importFrom
-
-distance <- dist(mat_dev_t, method = "euclidean")
-mat_dev_t_clust <- hclust(distance)
-
-hclust_cut <- cutree(mat_dev_t_clust, 5)
-
-sort(table(hclust_cut))
-sort(table(kfit$cluster))
-
-?cutree
-
-str(mat_dev_t_clust)
-plot(mat_dev_t_clust)
-
-# Fits kmeans algorithm
+# Transposes matrix
 
 mat_dev_t <- t(mat_dev)
 
-myList <- list()
-myList1 <- list()
+# Number of clusters
 
-# Testing kmeans
-myList <- list()
-for (i in 1:500){
-  myName <- kmeans(mat_dev_t, centers = 5) # need to fix - find a way to stablize this - too random
-  myList[[i]] <- sort(table(myName$cluster))
-}
+n_clusters <- 5
 
-x <- do.call(rbind, myList)
+# Fits Ward's 
 
-z1 <- colSums(x) / 500
+distance <- dist(mat_dev_t, method = "euclidean")
 
-apply(x, MARGIN = 2, sd)
-apply(x, MARGIN = 2, hist)
+mat_dev_t_clust <- hclust(distance)
+hclust_cut <- cutree(mat_dev_t_clust, n_clusters)
+sort(table(hclust_cut))
 
-# Testing kmeans with nstart
-myList <- list()
-for (i in 1:500){
-  myName <- kmeans(mat_dev_t, centers = 5, nstart = 5) # need to fix - find a way to stablize this - too random
-  myList[[i]] <- sort(table(myName$cluster))
-}
+# Fits kmeans algorithm
 
-y <- do.call(rbind, myList)
-
-z2 <- colSums(y) / 500
-
-apply(y, MARGIN = 2, sd)
-apply(y, MARGIN = 2, hist)
-
-for (i in 1:5){
-  
-  print(t.test(x[, i], y[, i]))
-  
-}
-
-z1
-z2
-
+kfit <- kmeans(mat_dev_t, n_clusters)
+sort(table(kfit$cluster))
 
 # Need to fix - compare this to euclidean distance
 
