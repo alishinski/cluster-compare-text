@@ -12,6 +12,7 @@ setwd("~/Dropbox/statistics/cluster-compare-text/")
 
 # Loading packages - if packages are not already installed, call install.packages() first, e.g. for dplyr install.packages("dplyr")
 
+library(ppls)
 library(dplyr)
 library(tidyr)
 library(SnowballC)
@@ -20,7 +21,7 @@ library(lsa)
 library(cluster)
 library(ggplot2)
 library(wordcloud)
-library(ppls)
+
 
 # Loading data frame
 
@@ -391,16 +392,67 @@ for (i in 2:18) wss[i] <- sum(kmeans(mat,
 plot(1:18, wss, type="b", xlab="Number of Clusters",
      ylab="Within groups sum of squares")
 
+# Fits Ward's 
+
+??importFrom
+
+distance <- dist(mat_dev_t, method = "euclidean")
+mat_dev_t_clust <- hclust(distance)
+
+hclust_cut <- cutree(mat_dev_t_clust, 5)
+
+sort(table(hclust_cut))
+sort(table(kfit$cluster))
+
+?cutree
+
+str(mat_dev_t_clust)
+plot(mat_dev_t_clust)
 
 # Fits kmeans algorithm
 
 mat_dev_t <- t(mat_dev)
 
-kfit <- kmeans(mat_dev_t, centers = n_clusters) # need to fix - find a way to stablize this - too random
+myList <- list()
+myList1 <- list()
 
-kfit$tot.withinss
-kfit$totss
-kfit$wit
+# Testing kmeans
+myList <- list()
+for (i in 1:500){
+  myName <- kmeans(mat_dev_t, centers = 5) # need to fix - find a way to stablize this - too random
+  myList[[i]] <- sort(table(myName$cluster))
+}
+
+x <- do.call(rbind, myList)
+
+z1 <- colSums(x) / 500
+
+apply(x, MARGIN = 2, sd)
+apply(x, MARGIN = 2, hist)
+
+# Testing kmeans with nstart
+myList <- list()
+for (i in 1:500){
+  myName <- kmeans(mat_dev_t, centers = 5, nstart = 5) # need to fix - find a way to stablize this - too random
+  myList[[i]] <- sort(table(myName$cluster))
+}
+
+y <- do.call(rbind, myList)
+
+z2 <- colSums(y) / 500
+
+apply(y, MARGIN = 2, sd)
+apply(y, MARGIN = 2, hist)
+
+for (i in 1:5){
+  
+  print(t.test(x[, i], y[, i]))
+  
+}
+
+z1
+z2
+
 
 # Need to fix - compare this to euclidean distance
 
