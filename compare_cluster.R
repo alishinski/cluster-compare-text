@@ -22,7 +22,6 @@ library(cluster)
 library(ggplot2)
 library(wordcloud)
 
-
 # Loading data frame
 
 all <- read.csv("scip_data.csv")
@@ -41,13 +40,13 @@ purp <- select(all, purpose, grade, teacher, ID, time, T1, T2, T3, T4, S1, S2, S
 crit <- select(all, criteria, grade, teacher, ID, time, T1, T2, T3, T4, S1, S2, S3, S4, S5)
 
 # Selecting data frame for analysis
-
-doc_vec <- aud1$audience1
+# 
+# doc_vec <- aud1$audience1
 # doc_vec <- aud2$audience2
 # doc_vec <- gen$generality
 # doc_vec <- evid$evidence
 # doc_vec <- purp$purpose
-# doc_vec <- crit$criteria
+doc_vec <- crit$criteria
 
 #-------------------------------------------------------
 # 2. Variables to modify
@@ -55,7 +54,7 @@ doc_vec <- aud1$audience1
 
 # Number of clusters
 
-n_clusters <- 7
+n_clusters <- 4
 
 # Stopwords
 
@@ -295,7 +294,7 @@ time <- list(index_1, index_2, index_3, index_4, index_5, index_6)
 
 # Selecting doc_list
 
-doc_list <- teachers
+doc_list <- time
 
 #-------------------------------------------------------
 # 6. Preparing data for clustering
@@ -350,6 +349,8 @@ freq_terms <- rowSums(as.matrix(TDM_cleaned))
 
 mat <- as.matrix(TDM_cleaned)
 
+mat_t <- t(mat)
+
 # Processing data for vectors
 
 mat_list <- apply(mat, 2, list)
@@ -396,22 +397,40 @@ plot(1:18, wss, type="b", xlab="Number of Clusters",
 
 mat_dev_t <- t(mat_dev)
 
-# Number of clusters
-
-n_clusters <- 5
-
 # Fits Ward's 
 
 distance <- dist(mat_dev_t, method = "euclidean")
 
 mat_dev_t_clust <- hclust(distance)
 hclust_cut <- cutree(mat_dev_t_clust, n_clusters)
-sort(table(hclust_cut))
+
+# Clusters for Ward's
+
+clusters1 <- list()
+
+for (i in seq(n_clusters)){
+  clusters1[[i]] <- mat_dev_t[hclust_cut == i,]
+}
+
+ordered_clusters1 <- list()
+cluster_freqs1 <- list()
+
+for (i in seq(length(clusters1))){
+  
+  ordered_clusters1[[i]] <- colSums(as.matrix(clusters1[[i]]) / nrow(clusters1[[i]]))
+  
+  cluster_freqs1[[i]] <- ordered_clusters1[[i]]
+}
 
 # Fits kmeans algorithm
 
-kfit <- kmeans(mat_dev_t, n_clusters)
-sort(table(kfit$cluster))
+set.seed(06132015)
+
+start <- data.frame(matrix(unlist(cluster_freqs1), nrow=length(cluster_freqs1[[1]]), byrow=T),stringsAsFactors=FALSE)
+start <- t(as.matrix(start))
+kfit <- kmeans(mat_dev_t, start)
+
+# for each of the nclusters (4) as rows in a matrix you'll have values for all of the y's as columns in a matrix
 
 # Need to fix - compare this to euclidean distance
 
@@ -438,7 +457,7 @@ sort(table(kfit$cluster))
 clusters <- list()
 
 for (i in seq(n_clusters)){
-  clusters[[i]] <- TDM_cleaned[, kfit$cluster == i]
+  clusters[[i]] <- mat_dev_t[kfit$cluster == i, ]
 }
 
 # Creating an ordered list of clusters
@@ -448,7 +467,7 @@ cluster_freqs <- list()
 clusters_df <- matrix(nrow = 10, ncol = n_clusters)
 
 for (i in seq(length(clusters))){
-  ordered_clusters[[i]] <- rowSums(as.matrix(clusters[[i]]) / ncol(clusters[[i]]))
+  ordered_clusters[[i]] <- colSums(as.matrix(clusters[[i]]) / nrow(clusters[[i]]))
   cluster_freqs[[i]] <- ordered_clusters[[i]]
   ordered_clusters[[i]] <- names(sort(ordered_clusters[[i]], decreasing = TRUE))
   clusters_df[, i] <- ordered_clusters[[i]][1:10]
@@ -459,18 +478,18 @@ colnames(clusters_df) <- paste("Cluster ", c(seq(n_clusters)), sep="")
 
 ### Creating an adjusted (by relevance) ordered list of clusters ## need to fix - this is not working (I think because of freq_terms)
 
-adjordered_clusters <- list()
-adjclusters_df <- matrix(nrow = 10, ncol = n_clusters)
-
-for (i in seq(length(clusters))){
-  adjordered_clusters[[i]] <- rowSums(as.matrix(clusters[[i]]) / ncol(clusters[[i]]))
-  adjordered_clusters[[i]] <- adjordered_clusters[[i]] - freq_terms / length(freq_terms)
-  adjordered_clusters[[i]] <- names(sort(adjordered_clusters[[i]], decreasing = TRUE))
-  adjclusters_df[, i] <- adjordered_clusters[[i]][1:10]
-}
-
-adjclusters_df <- as.data.frame(adjclusters_df)
-colnames(adjclusters_df) <- paste("Cluster ", c(seq(n_clusters)), sep="")
+# adjordered_clusters <- list()
+# adjclusters_df <- matrix(nrow = 10, ncol = n_clusters)
+# 
+# for (i in seq(length(clusters))){
+#   adjordered_clusters[[i]] <- colSums(as.matrix(clusters[[i]]) / nrow(clusters[[i]]))
+#   adjordered_clusters[[i]] <- adjordered_clusters[[i]] - freq_terms / length(freq_terms)
+#   adjordered_clusters[[i]] <- names(sort(adjordered_clusters[[i]], decreasing = TRUE))
+#   adjclusters_df[, i] <- adjordered_clusters[[i]][1:10]
+# }
+# 
+# adjclusters_df <- as.data.frame(adjclusters_df)
+# colnames(adjclusters_df) <- paste("Cluster ", c(seq(n_clusters)), sep="")
 
 #-------------------------------------------------------
 # 8. Output for further processing and general output
@@ -555,17 +574,18 @@ cosines_df_scaled
 
 # Terms in term document matrix with sparse terms removed
 
-# print(TDM_common)
+TDM_common
 
 # Number of documents in each cluster
-
-print(table(kfit$cluster))
+# 
+# print(table(kfit$cluster))
 
 # 10 most frequently included terms in each cluster and adjusted terms
 
 print(clusters_df)
-print(table(kfit$cluster))
-print(adjclusters_df)
+sort(table(hclust_cut))
+sort(table(kfit$cluster))
+# print(adjclusters_df)
 
 # Cosines
 
@@ -580,11 +600,11 @@ print(cosines_df)
 # }
 
 # Plot
-
-cos_plot <- gather(cosines_df, cluster, cosines)
-cos_plot$group <- rep(1:length(doc_list), length(cosines_df))
-ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
-  geom_bar(position = "dodge", stat = "identity", width = .75)
+# 
+# cos_plot <- gather(cosines_df, cluster, cosines)
+# cos_plot$group <- rep(1:length(doc_list), length(cosines_df))
+# ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
+#   geom_bar(position = "dodge", stat = "identity", width = .75)
 
 # Scaled plot
 
@@ -597,27 +617,27 @@ ggplot(data = cos_plot, aes(x = group, y = cosines, fill = cluster)) +
 
 # For teachers
 
-cos_plot <- gather(cosines_df_scaled, Cluster, cosines)
-
-cos_plot$group <- rep(c("1_J", "2_Paul", "3_Cathy", "4_Julie"), length(cosines_df_scaled))
-
-ggplot(data = cos_plot, aes(x = group, y = cosines, fill = Cluster)) +
-  geom_bar(position = "dodge", stat = "identity", width = .75) +
-  xlab("Teacher") +
-  ylab("Cosines (z-score)") +
-  ggtitle("Convincing audience cosines (z-score) by teachers")
+# cos_plot <- gather(cosines_df, Cluster, cosines)
+# 
+# cos_plot$group <- rep(c("1_J", "2_Paul", "3_Cathy", "4_Julie"), length(cosines_df_scaled))
+# 
+# ggplot(data = cos_plot, aes(x = group, y = cosines, fill = Cluster)) +
+#   geom_bar(position = "dodge", stat = "identity", width = .75) +
+#   xlab("Teacher") +
+#   ylab("Cosines (z-score)") +
+#   ggtitle("Convince audience cosines (z-score) by teachers")
 
 # For time
 
-cos_plot <- gather(cosines_df_scaled, Cluster, cosines)
+cos_plot <- gather(cosines_df, Cluster, cosines)
 
 cos_plot$group <- rep(1:length(doc_list), length(cosines_df))
 
 ggplot(data = cos_plot, aes(x = group, y = cosines, fill = Cluster)) +
   geom_bar(position = "dodge", stat = "identity", width = .75) +
   xlab("Time") +
-  ylab("Cosines (z-score)") +
-  ggtitle("Purpose cosines (z-score) by time")
+  ylab("Cosines") +
+  ggtitle("Criteria cosines by time")
 
 # Plot
 # 
