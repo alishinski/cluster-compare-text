@@ -191,8 +191,10 @@ index_nsta <- tm_index(myCorpus, function(x) meta(x, "hashtag") == "nsta")
 # Selecting doc_list
 
 hashtag <- list(index_narst, index_nsta)
+str(index_narst)
 
 doc_list <- hashtag
+str(doc_list)
   
 #-------------------------------------------------------
 # 6. Preparing data for clustering
@@ -403,17 +405,14 @@ doc_list_cleaned <- list()
 
 for (i in seq(doc_list)){
   doc_list_cleaned[[i]] <- doc_list[[i]] & plusCI & minusCI & adjminusCI
-  print(table(doc_list_cleaned[[i]]))
 }
-
-str(doc_list)
 
 # Creates groups from TDM_common using group booleans 
 
 TDM_group <- list()
 
 for (i in seq(doc_list)){
-  TDM_group[[i]] <- mat_dev_t[, doc_list_cleaned[[i]]]
+  TDM_group[[i]] <- TDM_cleaned[, doc_list_cleaned[[i]]]
 }
 
 # Calculates term frequencies for each group 
@@ -421,11 +420,11 @@ for (i in seq(doc_list)){
 group_freqs <- list()
 
 for (i in seq(doc_list)){
-  group_freqs[[i]] <- colSums(as.matrix(TDM_group[[i]])) / nrow(TDM_group[[i]]) # Need to fix - will want to add group freqs
+  group_freqs[[i]] <- rowSums(as.matrix(TDM_group[[i]])) / ncol(TDM_group[[i]]) # Need to fix - will want to add group freqs
 }
 
-group_freqs
-
+str(group_freqs)
+str(cluster_freqs)
 #-------------------------------------------------------
 # 9. Calculating similarities
 #-------------------------------------------------------
@@ -450,7 +449,7 @@ for (i in seq(length(TDM_group))){ ## change this
 # Creating data frame and scaled data frame
 
 cosines_df <- as.data.frame(do.call(rbind, cosines_list))
-cosines_df
+
 # # cosines_df
 # cosines_df_scaled <- as.data.frame(sapply(cosines_df, scale))
 # cosines_df_scaled
@@ -476,8 +475,6 @@ cosines_df
 
 # Terms in term document matrix with sparse terms removed
 
-
-
 # Number of documents in each cluster
 # 
 # print(table(kfit$cluster))
@@ -489,6 +486,7 @@ sort(table(hclust_cut))
 sort(table(kfit$cluster))
 table(kfit$cluster)
 print(clusters_df)
+
 # print(adjclusters_df)
 
 # Cosines
@@ -534,7 +532,6 @@ print(clusters_df)
 # For time
 
 cos_plot <- gather(cosines_df, Cluster, cosines)
-
 cos_plot$group <- rep(1:length(doc_list), length(cosines_df))
 
 ggplot(data = cos_plot, aes(x = group, y = cosines, fill = Cluster)) +
