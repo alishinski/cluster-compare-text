@@ -25,6 +25,7 @@ library(wordcloud)
 # Loading data frame
 
 all <- read.csv("scip_data.csv")
+str(all)
 
 #data$async <- iconv(data$async, "macintosh", "UTF-8")
 
@@ -107,6 +108,13 @@ stemCompletion2 <- function(x, dictionary) {
   x <- paste(x, sep="", collapse=" ")
   PlainTextDocument(stripWhitespace(x))
 }
+
+# Removes username
+  doc_vec <- gsub("@\\w+", "", doc_vec)
+
+# Removes links
+  # Remove links
+  doc_vec <- gsub("http\\w+", "", doc_vec)
 
 # Processing files
 
@@ -367,6 +375,11 @@ dev_vector <- function(vect_list){
 
 # Calculating deviation vectors
 
+x <- c(1, 1, 2)
+y <- c(1, 1, 3)
+z <- list(x, y)
+dev_vector(z)
+
 mat_vec <- lapply(mat_list, unlist)
 mat_dev <- dev_vector(mat_vec)
 
@@ -393,7 +406,6 @@ mat_dev_t <- t(mat_dev)
 # Fits Ward's 
 
 distance <- dist(mat_dev_t, method = "euclidean")
-
 mat_dev_t_clust <- hclust(distance)
 hclust_cut <- cutree(mat_dev_t_clust, n_clusters)
 
@@ -421,6 +433,7 @@ set.seed(06132015)
 
 start <- data.frame(matrix(unlist(cluster_freqs1), nrow=length(cluster_freqs1[[1]]), byrow=T),stringsAsFactors=FALSE)
 start <- t(as.matrix(start))
+
 kfit <- kmeans(mat_dev_t, start)
 
 # for each of the nclusters (4) as rows in a matrix you'll have values for all of the y's as columns in a matrix
@@ -477,10 +490,12 @@ minusCI <- !minusCI_bool
 adjminusCI <- !adjminusCI_bool
 
 doc_list_cleaned <- list()
+doc_list_cleaned_1 <- list()
 
 for (i in seq(doc_list)){
   doc_list_cleaned[[i]] <- doc_list[[i]] & plusCI & minusCI & adjminusCI
   print(table(doc_list_cleaned[[i]]))
+  doc_list_cleaned_1[[i]] <- doc_list_cleaned[[i]][!doc_outliers]
 }
 
 # Creates groups from TDM_common using group booleans 
@@ -488,15 +503,22 @@ for (i in seq(doc_list)){
 TDM_group <- list()
 
 for (i in seq(doc_list)){
-  TDM_group[[i]] <- TDM_cleaned[, doc_list_cleaned[[i]]]
+  TDM_group[[i]] <- mat_dev_t[doc_list_cleaned_1[[i]],]
 }
+
+clusters <- list()
+
+for (i in seq(n_clusters)){
+  clusters[[i]] <- mat_dev_t[kfit$cluster == i, ]
+}
+
 
 # Calculates term frequencies for each group 
 
 group_freqs <- list()
 
 for (i in seq(doc_list)){
-  group_freqs[[i]] <- rowSums(as.matrix(TDM_group[[i]])) / ncol(TDM_group[[i]]) # Need to fix - will want to add group freqs
+  group_freqs[[i]] <- colSums(as.matrix(TDM_group[[i]])) / nrow(TDM_group[[i]]) # Need to fix - will want to add group freqs
 }
 
 #-------------------------------------------------------
