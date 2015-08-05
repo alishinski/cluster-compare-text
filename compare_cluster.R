@@ -2,37 +2,22 @@
 # 1. Setting working directory, loading packages, and loading files
 #-------------------------------------------------------
 
-# Clearing environment 
-
 rm(list = ls(all = TRUE))
 
-# Setting working directory
+setwd("~/Dropbox/research/cluster-compare-text/")
 
-setwd("~/Dropbox/statistics/cluster-compare-text/")
-
-# Loading packages - if packages are not already installed, call install.packages() first, e.g. for dplyr install.packages("dplyr")
-
-library(ppls)
 library(dplyr)
 library(tidyr)
 library(SnowballC)
 library(tm)
 library(lsa)
-library(cluster)
 library(ggplot2)
-library(wordcloud)
+library(ppls)
 
 # Loading data frame
-
 all <- read.csv("scip_data.csv")
-str(all)
-
-#data$async <- iconv(data$async, "macintosh", "UTF-8")
-
-# all <- lapply(all, function(x) iconv(x, "macintosh", "UTF-8"))
 
 # Selecting columns of dataframe by question topic
-
 aud1 <- select(all, audience1, grade, teacher, ID, time, T1, T2, T3, T4, S1, S2, S3, S4, S5)
 aud2 <- select(all, audience2, grade, teacher, ID, time, T1, T2, T3, T4, S1, S2, S3, S4, S5)
 gen <- select(all, generality, grade, teacher, ID, time, T1, T2, T3, T4, S1, S2, S3, S4, S5)
@@ -40,68 +25,49 @@ evid <- select(all, evidence, grade, teacher, ID, time, T1, T2, T3, T4, S1, S2, 
 purp <- select(all, purpose, grade, teacher, ID, time, T1, T2, T3, T4, S1, S2, S3, S4, S5)
 crit <- select(all, criteria, grade, teacher, ID, time, T1, T2, T3, T4, S1, S2, S3, S4, S5)
 
-# Selecting data frame for analysis
-# 
-# doc_vec <- aud1$audience1
-# doc_vec <- aud2$audience2
-# doc_vec <- gen$generality
-# doc_vec <- evid$evidence
-# doc_vec <- purp$purpose
-doc_vec <- crit$criteria
+# Other variables to modify
+n_clusters <- 3
+minimum_groups <- 3
+minimum_term_frequency <- 3
+term <- "audience"
 
-#-------------------------------------------------------
-# 2. Variables to modify
-#-------------------------------------------------------
+# Selecting data frame
 
-# Number of clusters
+text_vector <- aud1$audience1 # 3, groups, freqs
+# text_vector <- aud2$audience2 # 3, groups, freqs
+# text_vector <- gen$generality # 4, groups, freqs
+# text_vector <- evid$evidence # 4, groups, freqs
+# text_vector <- purp$purpose # 5, groups, freqs
+# text_vector <- crit$criteria # 3, groups, freqs
 
-n_clusters <- 4
-
-# Stopwords
-
-#stopwords <- TRUE
+print_path1 <- paste0("results/png/", term, ".png")
+print_path2 <- paste0("results/png/term", term, ".csv")
+print_path3 <- paste0("results/png/freq", term, ".csv")
 
 # Custom stopwords
 
-custom_stopwords <- c("lorum ipsum") # need to fix - not sure why apostrophes aren't being encoded properly - try to save data again?
+# Standard stopwords 
 
-# Sparseness of term document matrices (from 0.00 to 1.00)
+standard_stopwords <- c("a", "an", "the", "to", "of", "and", "for", "by", "on", "is", "I", "all", "this", "with", 
+                        "it", "at", "from", "or", "you", "as", "your", "are", "be", "that", "not", "have", "was",
+                        "we", "what", "which", "there", "they", "he", "she", "his", "hers", "had", "word", "our", 
+                        "you", "about", "that", "this", "but", "not", "what")
 
-sparseness <- .995 ## is there a way to improve this to make it more intuitive? currently, lower sparseness leads to more terms
+# Additional stopwords
 
-# Weighting of terms in term document matrices (weightTF, weightTfIdf, or weightBin)
+additional_stopwords <- c("water")
 
-# weighting <- 
+# Combine standard and additional stopwords
 
-# Normalization of terms in term document matrices
+all_stopwords <- append(standard_stopwords, additional_stopwords)
 
-# normalization <- TRUE
+# -----------------------------------------------------------
+# 2. Process text
+# -----------------------------------------------------------
 
-# Stem document
+# Modified stemCompletion function as stemCompletion included with the tm package was not working
 
-# stem <- TRUE
-
-# Distance metric
-
-# distance <-
-
-# Type of plot (usin scaled or un-scaled cosines)
-
-# plot_type <- 
-
-# Group factor
-
-# group <- 
-
-#-------------------------------------------------------
-# 3. Creating corpora and term document matrices
-#-------------------------------------------------------
-
-# Creating a list of groups of corpora for each group of vectors
-
-# Modified stemCompletion function, as stemCompletion was not working
-
-stemCompletion2 <- function(x, dictionary) {
+stemCompletionMod <- function(x, dictionary) {
   x <- unlist(strsplit(as.character(x), " "))
   x <- x[x != ""]
   x <- stemCompletion(x, dictionary=dictionary)
@@ -109,66 +75,37 @@ stemCompletion2 <- function(x, dictionary) {
   PlainTextDocument(stripWhitespace(x))
 }
 
-# Removes username
-  doc_vec <- gsub("@\\w+", "", doc_vec)
+# Creating and processing corpus
 
-# Removes links
-  # Remove links
-  doc_vec <- gsub("http\\w+", "", doc_vec)
-
-# Processing files
-
-myCorpus <- Corpus(VectorSource(doc_vec))
-myCorpus <- tm_map(myCorpus, content_transformer(tolower), mc.cores = 1)
-myCorpus <- tm_map(myCorpus, removePunctuation, mc.cores = 1)
-myCorpus <- tm_map(myCorpus, removeNumbers, mc.cores = 1)
-myCorpus <- tm_map(myCorpus, removeWords, stopwords("english"), mc.cores = 1)
-myCorpus <- tm_map(myCorpus, removeWords, custom_stopwords, mc.cores=1)
-myCorpus_copy <- myCorpus
-myCorpus <- tm_map(myCorpus, stemDocument, mc.cores = 1)
-myCorpus <- tm_map(myCorpus, stemCompletion2, myCorpus_copy)
-myCorpus <- tm_map(myCorpus, stripWhitespace, mc.cores = 1)
+myCorpus <- Corpus(VectorSource(text_vector))
+myCorpus <- tm_map(myCorpus, content_transformer(tolower), mc.cores = 1) # makes text lowercase
+myCorpus <- tm_map(myCorpus, removePunctuation, mc.cores = 1) # removes punctuation
+myCorpus <- tm_map(myCorpus, removeNumbers, mc.cores = 1) # removes numbers
+myCorpus <- tm_map(myCorpus, removeWords, all_stopwords, mc.cores=1) # removes stopwords
+myCorpus_copy <- myCorpus # makes a copy of the corpus for the stepCompletionMod function to compare to 
+myCorpus <- tm_map(myCorpus, stemDocument, mc.cores = 1) # stems text
+myCorpus <- tm_map(myCorpus, stemCompletionMod, myCorpus_copy) # completes stemmed text
+myCorpus <- tm_map(myCorpus, stripWhitespace, mc.cores = 1) # removes whitespace
 myCorpus <- tm_map(myCorpus, PlainTextDocument)
 
-print(paste("Processed ", length(doc_vec), " documents", sep = ""))
+print(paste("Processed ", length(text_vector), " documents", sep = ""))
 
-#-------------------------------------------------------
-# 4. For overall term document matrix
-#-------------------------------------------------------
+# -----------------------------------------------------------
+# 3. Creates a term document matrix from the processed text
+# -----------------------------------------------------------
 
-# Creating a term document matrix from the corpus ## need to fix documents with no text (or earlier)
- 
-TDM <- TermDocumentMatrix(myCorpus, control = list(weighting = function(x) weightSMART(x, spec = "nnn")))
+TDM <- TermDocumentMatrix(myCorpus)
 
-# Removing sparse terms
-
-TDM_common <- removeSparseTerms(TDM, sparseness)
-
-#-------------------------------------------------------
-# 5. For group term document matrices
-#-------------------------------------------------------
-
-# Name documents ## Specific to scip data
+# Names documents
 
 for (i in 1:length(myCorpus)){
-  meta(myCorpus[[i]], "teacher") <- aud1$teacher[i]
+  meta(myCorpus[[i]], "teacher") <- aud1$teacher[i] 
   meta(myCorpus[[i]], "grade") <- aud1$grade[i]
   meta(myCorpus[[i]], "ID") <- aud1$ID[i]
   meta(myCorpus[[i]], "time") <- aud1$time[i]
-  
-  meta(myCorpus[[i]], "T1") <- aud1$T1[i]
-  meta(myCorpus[[i]], "T2") <- aud1$T2[i]
-  meta(myCorpus[[i]], "T3") <- aud1$T3[i]
-  meta(myCorpus[[i]], "T4") <- aud1$T4[i]
-  
-  meta(myCorpus[[i]], "S1") <- aud1$S1[i]
-  meta(myCorpus[[i]], "S2") <- aud1$S2[i]
-  meta(myCorpus[[i]], "S3") <- aud1$S3[i]
-  meta(myCorpus[[i]], "S4") <- aud1$S4[i]
-  meta(myCorpus[[i]], "S5") <- aud1$S5[i]
 }
 
-# Filter term document matrices by group ## need to fix - loop these!
+# Creates logicals based on names of documents
 
 # By teacher
 
@@ -176,6 +113,8 @@ index_T1 <- tm_index(myCorpus, function(x) meta(x, "teacher") == 1)
 index_T2 <- tm_index(myCorpus, function(x) meta(x, "teacher") == 2)
 index_T3 <- tm_index(myCorpus, function(x) meta(x, "teacher") == 3)
 index_T4 <- tm_index(myCorpus, function(x) meta(x, "teacher") == 4)
+
+teacher <- list(index_T1, index_T2, index_T3, index_T4)
 
 # By time
 
@@ -186,173 +125,89 @@ index_4 <- tm_index(myCorpus, function(x) meta(x, "time") == 4)
 index_5 <- tm_index(myCorpus, function(x) meta(x, "time") == 5)
 index_6 <- tm_index(myCorpus, function(x) meta(x, "time") == 6)
 
-# By teacher by time ## Need to fix
-
-# T1
-
-T1Xtime1 <- tm_index(myCorpus, function(x) meta (x, "T1") == 1)
-T1Xtime2 <- tm_index(myCorpus, function(x) meta (x, "T1") == 2)
-T1Xtime3 <- tm_index(myCorpus, function(x) meta (x, "T1") == 3)
-
-# T2
-
-T2Xtime1 <- tm_index(myCorpus, function(x) meta (x, "T2") == 1)
-T2Xtime2 <- tm_index(myCorpus, function(x) meta (x, "T2") == 2)
-T2Xtime3 <- tm_index(myCorpus, function(x) meta (x, "T2") == 3)
-
-# T3
-
-T3Xtime1 <- tm_index(myCorpus, function(x) meta (x, "T3") == 1)
-T3Xtime2 <- tm_index(myCorpus, function(x) meta (x, "T3") == 2)
-T3Xtime3 <- tm_index(myCorpus, function(x) meta (x, "T3") == 3)
-
-# T4
-
-T4Xtime1 <- tm_index(myCorpus, function(x) meta (x, "T4") == 1)
-T4Xtime2 <- tm_index(myCorpus, function(x) meta (x, "T4") == 2)
-T4Xtime3 <- tm_index(myCorpus, function(x) meta (x, "T4") == 3)
-
-indexT1Xtime <- list(T1Xtime1, T1Xtime2, T1Xtime3)
-indexT2Xtime <- list(T2Xtime1, T2Xtime2, T2Xtime3)
+time <- list(index_1, index_2, index_3, index_4, index_5, index_6)
 
 # By grade
 
 index_grade5 <- tm_index(myCorpus, function(x) meta(x, "grade") == 5)
 index_grade6 <- tm_index(myCorpus, function(x) meta(x, "grade") == 6)
 
-# Student by time
+grade <- list(index_grade5, index_grade6)
 
-# S1
+doc_list <- teacher # choose between teacher, time, and grade
 
-S1Xtime1 <- tm_index(myCorpus, function(x) meta (x, "S1") == 1)
-S1Xtime2 <- tm_index(myCorpus, function(x) meta (x, "S1") == 2)
-S1Xtime3 <- tm_index(myCorpus, function(x) meta (x, "S1") == 3)
-S1Xtime4 <- tm_index(myCorpus, function(x) meta (x, "S1") == 4)
-S1Xtime5 <- tm_index(myCorpus, function(x) meta (x, "S1") == 5)
-S1Xtime6 <- tm_index(myCorpus, function(x) meta (x, "S1") == 6)
+# -----------------------------------------------------------
+# 4. Cleans term document matrices 
+# -----------------------------------------------------------
 
-# S2
+# # For time
+# 
+# time_list <- list()
+# matrix_list <- list()
+# index_list <- list()
+# 
+# for (i in 1:length(doc_list)){
+#   time_list[[i]] <- TDM[, doc_list[[i]]]
+#   matrix_list[[i]] <- as.matrix(time_list[[i]])
+#   index_list[[i]] <- rowSums(matrix_list[[i]]) > 0
+# }
+# 
+# new_index <- index_list[[1]] + index_list[[2]] + index_list[[3]] + index_list[[4]] + index_list[[5]] + index_list[[6]]
+# new_index <- new_index >= minimum_groups
 
-S2Xtime1 <- tm_index(myCorpus, function(x) meta (x, "S2") == 1)
-S2Xtime2 <- tm_index(myCorpus, function(x) meta (x, "S2") == 2)
-S2Xtime3 <- tm_index(myCorpus, function(x) meta (x, "S2") == 3)
-S2Xtime4 <- tm_index(myCorpus, function(x) meta (x, "S2") == 4)
-S2Xtime5 <- tm_index(myCorpus, function(x) meta (x, "S2") == 5)
-S2Xtime6 <- tm_index(myCorpus, function(x) meta (x, "S2") == 6)
+# For teacher
 
-# S3
+teacher_list <- list()
+matrix_list <- list()
+index_list <- list()
 
-S3Xtime1 <- tm_index(myCorpus, function(x) meta (x, "S3") == 1)
-S3Xtime2 <- tm_index(myCorpus, function(x) meta (x, "S3") == 2)
-S3Xtime3 <- tm_index(myCorpus, function(x) meta (x, "S3") == 3)
-S3Xtime4 <- tm_index(myCorpus, function(x) meta (x, "S3") == 4)
-S3Xtime5 <- tm_index(myCorpus, function(x) meta (x, "S3") == 5)
-S3Xtime6 <- tm_index(myCorpus, function(x) meta (x, "S3") == 6)
+for (i in 1:length(doc_list)){
+  teacher_list[[i]] <- TDM[, doc_list[[i]]]
+  matrix_list[[i]] <- as.matrix(teacher_list[[i]])
+  index_list[[i]] <- rowSums(matrix_list[[i]]) > 0
+}
 
-# S4
+new_index <- index_list[[1]] + index_list[[2]] + index_list[[3]] + index_list[[4]]
+new_index <- new_index >= minimum_groups
 
-S4Xtime1 <- tm_index(myCorpus, function(x) meta (x, "S4") == 1)
-S4Xtime2 <- tm_index(myCorpus, function(x) meta (x, "S4") == 2)
-S4Xtime3 <- tm_index(myCorpus, function(x) meta (x, "S4") == 3)
-S4Xtime4 <- tm_index(myCorpus, function(x) meta (x, "S4") == 4)
-S4Xtime5 <- tm_index(myCorpus, function(x) meta (x, "S4") == 5)
-S4Xtime6 <- tm_index(myCorpus, function(x) meta (x, "S4") == 6)
+# Filters
 
-# S5
+term_sums <- rowSums(as.matrix(TDM))
+term_logical <- term_sums >= minimum_term_frequency  # change these parameters - this has to do with the minimum frequencies to be included in vocabulary
 
-S5Xtime1 <- tm_index(myCorpus, function(x) meta (x, "S5") == 1)
-S5Xtime2 <- tm_index(myCorpus, function(x) meta (x, "S5") == 2)
-S5Xtime3 <- tm_index(myCorpus, function(x) meta (x, "S5") == 3)
-S5Xtime4 <- tm_index(myCorpus, function(x) meta (x, "S5") == 4)
-S5Xtime5 <- tm_index(myCorpus, function(x) meta (x, "S5") == 5)
-S5Xtime6 <- tm_index(myCorpus, function(x) meta (x, "S5") == 6)
+TDM_common <- TDM[term_logical & new_index, ] # indexes TDM based on minimum frequencies and maximum frequencies and occuring at least once in both hashtags
 
-# Students
+# Finds and removes documents with no terms
 
-S3Xtime1 <- tm_index(myCorpus, function(x) meta (x, "S3") == 1)
-
-index_MC <- list(S1Xtime1, S1Xtime2, S1Xtime3, S1Xtime4, S1Xtime5, S1Xtime6)
-index_AD <- list(S2Xtime1, S2Xtime2, S2Xtime3, S2Xtime4, S2Xtime5, S2Xtime6)
-index_DN <- list(S3Xtime1, S3Xtime2, S3Xtime3, S3Xtime4, S3Xtime5, S3Xtime6)
-index_JS <- list(S4Xtime1, S4Xtime2, S4Xtime3, S4Xtime4, S4Xtime5, S4Xtime6)
-index_KH <- list(S5Xtime1, S5Xtime2, S5Xtime3, S5Xtime4, S5Xtime5, S5Xtime6)
-
-# Selecting index
-
-# Teachers
-teachers <- list(index_T1, index_T2, index_T3, index_T4)
-
-# # Time
-time <- list(index_1, index_2, index_3, index_4, index_5, index_6)
-
-# Grade
-
-# doc_list <- list (index_grade5, index_grade6)
-
-# Students
-
-# doc_list <- list(index_MC, index_AD, index_DN, index_JS, index_KH)
-
-# Selecting doc_list
-
-doc_list <- time
-
-#-------------------------------------------------------
-# 6. Preparing data for clustering
-#-------------------------------------------------------
-
-# Removing outliers
-
-# Creates booleans for outliers
-
-doc_len_M <- mean(sort(colSums(as.matrix(TDM_common))))
-doc_len_SD <- sd(sort(colSums(as.matrix(TDM_common))))
-
-plusCI <- doc_len_M + 3.00*(doc_len_SD) # need to change this 
-minusCI <- doc_len_M - 3.00*(doc_len_SD) # need to change this 
-
-# Removes outliers ## need to fix - not a valid method
-
-plusCI_bool <- colSums(as.matrix(TDM_common)) > plusCI
-minusCI_bool <- colSums(as.matrix(TDM_common)) < minusCI
-
-print(sum(plusCI_bool))
-print(sum(minusCI_bool))
-
-adjminusCI_bool <- colSums(as.matrix(TDM_common)) <= 1 # need to fix - change this 
-print(sum(adjminusCI_bool))
-
-doc_outliers <- plusCI_bool + minusCI_bool + adjminusCI_bool
-  
-# Creates initial matrix which needs to have deviation vectors calculated
-
-mat <- as.matrix(TDM_common) ## need to fix - move?
-
-# Filters initial matrix by boolean vectors to remove document outliers
-
+adjminusCI_bool <- colSums(as.matrix(TDM_common)) < 1 # need to fix - change this 
+doc_outliers <- adjminusCI_bool
 TDM_cleaned <- TDM_common[, !doc_outliers]
-
-# mat <- mat[, !doc_outliers]
 
 # Filters matrix by boolean vectors to remove term outliers resulting from removing document outliers
 
 term_outliers <- rowSums(as.matrix(TDM_cleaned)) == 0
-
-# mat <- mat[!term_outliers, ]
-
 TDM_cleaned <- TDM_cleaned[!term_outliers, ]
 
-# Finds freq terms for use in deviation vectors
+# Filters doc_list
 
-freq_terms <- rowSums(as.matrix(TDM_cleaned))
+adjminusCI <- !adjminusCI_bool
+doc_list_cleaned <- list()
+for (i in seq(doc_list)){
+  doc_list_cleaned[[i]] <- doc_list[[i]] & adjminusCI
+  doc_list_cleaned[[i]] <- doc_list_cleaned[[i]][!doc_outliers]
+}
 
-# Weights by deviation vectors
+
+
+# -----------------------------------------------------------
+# 5. Creates deviation vectors to prepare for clustering
+# -----------------------------------------------------------
+
+# Creates matrix which needs to have deviation vectors calculated
 
 mat <- as.matrix(TDM_cleaned)
 
-mat_t <- t(mat)
-
-# Processing data for vectors
+# Processing data for vectors into list
 
 mat_list <- apply(mat, 2, list)
 
@@ -375,239 +230,182 @@ dev_vector <- function(vect_list){
 
 # Calculating deviation vectors
 
-x <- c(1, 1, 2)
-y <- c(1, 1, 3)
-z <- list(x, y)
-dev_vector(z)
-
 mat_vec <- lapply(mat_list, unlist)
 mat_dev <- dev_vector(mat_vec)
 
-#----------------------------------
-# 7. Clustering and post-processing of clusters
-#-------------------------------------------------------
-  
-# Set seed for reproducibility
+# -----------------------------------------------------------
+# 6. Clusters documents
+# -----------------------------------------------------------
 
-set.seed(06132015)
-
-# Calculating number of clusters
+# Estimates number of clusters using within-cluster ss - change to between-cluster (e.g., residual) ss?
 
 wss <- (nrow(mat)- 1) * sum(apply(mat, 2, var)) # need to change
 for (i in 2:18) wss[i] <- sum(kmeans(mat,
                                      centers=i)$withinss)
-plot(1:18, wss, type="b", xlab="Number of Clusters",
-     ylab="Within groups sum of squares")
 
 # Transposes matrix
 
 mat_dev_t <- t(mat_dev)
 
-# Fits Ward's 
+# Fits Ward's hierarchical algorithm
 
-distance <- dist(mat_dev_t, method = "euclidean")
-mat_dev_t_clust <- hclust(distance)
-hclust_cut <- cutree(mat_dev_t_clust, n_clusters)
+distance <- dist(mat_dev_t, method = "euclidean") 
+mat_dev_t_clust <- hclust(distance) 
+hclust_cut <- cutree(mat_dev_t_clust, n_clusters) # cuts the results of the hierarchical cluster at the specified # of clusters
 
-# Clusters for Ward's
+# Processes clusters from Ward's for start values for k-means algorithm 
 
 clusters1 <- list()
-
 for (i in seq(n_clusters)){
   clusters1[[i]] <- mat_dev_t[hclust_cut == i,]
 }
 
 ordered_clusters1 <- list()
 cluster_freqs1 <- list()
-
 for (i in seq(length(clusters1))){
-  
   ordered_clusters1[[i]] <- colSums(as.matrix(clusters1[[i]]) / nrow(clusters1[[i]]))
-  
   cluster_freqs1[[i]] <- ordered_clusters1[[i]]
 }
 
-# Fits kmeans algorithm
-
-set.seed(06132015)
+# Fits k-means algorithm using results from hierarchical algorithm as start values
 
 start <- data.frame(matrix(unlist(cluster_freqs1), nrow=length(cluster_freqs1[[1]]), byrow=T),stringsAsFactors=FALSE)
-start <- t(as.matrix(start))
-
+start <- as.matrix(start)
+start <- t(start)
 kfit <- kmeans(mat_dev_t, start)
+ss_explained <- sum(kfit$betweenss) / kfit$totss
 
-# for each of the nclusters (4) as rows in a matrix you'll have values for all of the y's as columns in a matrix
+# -----------------------------------------------------------
+# 7. Finds cosine similarity between clusters and groups
+# -----------------------------------------------------------
 
-# Need to fix - compare cosine this to euclidean distance
-
-# Creating a list of weighted term document matrices for each cluster
+# Creates clusters using cluster logicals
 
 clusters <- list()
-
 for (i in seq(n_clusters)){
-  clusters[[i]] <- mat_dev_t[kfit$cluster == i, ]
+  clusters[[i]] <- t(as.matrix(TDM_cleaned))[kfit$cluster == i, ]
 }
 
-# Creating an ordered list of clusters
+# Creates term frequencies for each cluster
 
-ordered_clusters <- list()
 cluster_freqs <- list()
-clusters_df <- matrix(nrow = 10, ncol = n_clusters)
-
-for (i in seq(length(clusters))){
-  ordered_clusters[[i]] <- colSums(as.matrix(clusters[[i]]) / nrow(clusters[[i]]))
-  cluster_freqs[[i]] <- ordered_clusters[[i]]
-  ordered_clusters[[i]] <- names(sort(ordered_clusters[[i]], decreasing = TRUE))
-  clusters_df[, i] <- ordered_clusters[[i]][1:10]
+for (i in seq(n_clusters)){
+  cluster_freqs[[i]] <- colSums(clusters[[i]]) / nrow(clusters[[i]]) # Need to fix - will want to add group freqs
 }
 
-clusters_df <- as.data.frame(clusters_df)
-colnames(clusters_df) <- paste("Cluster ", c(seq(n_clusters)), sep="")
-
-### Creating an adjusted (by relevance) ordered list of clusters ## need to fix - this is not working (I think because of freq_terms)
-
-# adjordered_clusters <- list()
-# adjclusters_df <- matrix(nrow = 10, ncol = n_clusters)
-# 
-# for (i in seq(length(clusters))){
-#   adjordered_clusters[[i]] <- colSums(as.matrix(clusters[[i]]) / nrow(clusters[[i]]))
-#   adjordered_clusters[[i]] <- adjordered_clusters[[i]] - freq_terms / length(freq_terms)
-#   adjordered_clusters[[i]] <- names(sort(adjordered_clusters[[i]], decreasing = TRUE))
-#   adjclusters_df[, i] <- adjordered_clusters[[i]][1:10]
-# }
-# 
-# adjclusters_df <- as.data.frame(adjclusters_df)
-# colnames(adjclusters_df) <- paste("Cluster ", c(seq(n_clusters)), sep="")
-
-#-------------------------------------------------------
-# 8. Output for further processing and general output
-#-------------------------------------------------------
-
-# Filter out outliers from group booleans using outlier booleans
-
-plusCI <- !plusCI_bool
-minusCI <- !minusCI_bool
-adjminusCI <- !adjminusCI_bool
-
-doc_list_cleaned <- list()
-doc_list_cleaned_1 <- list()
-
-for (i in seq(doc_list)){
-  doc_list_cleaned[[i]] <- doc_list[[i]] & plusCI & minusCI & adjminusCI
-  print(table(doc_list_cleaned[[i]]))
-  doc_list_cleaned_1[[i]] <- doc_list_cleaned[[i]][!doc_outliers]
-}
-
-# Creates groups from TDM_common using group booleans 
+# Creates groups using group logicals
 
 TDM_group <- list()
-
-for (i in seq(doc_list)){
-  TDM_group[[i]] <- mat_dev_t[doc_list_cleaned_1[[i]],]
+for (i in seq(doc_list_cleaned)){
+  TDM_group[[i]] <- t(as.matrix(TDM_cleaned))[doc_list_cleaned[[i]],]
 }
-
-clusters <- list()
-
-for (i in seq(n_clusters)){
-  clusters[[i]] <- mat_dev_t[kfit$cluster == i, ]
-}
-
 
 # Calculates term frequencies for each group 
 
 group_freqs <- list()
-
 for (i in seq(doc_list)){
   group_freqs[[i]] <- colSums(as.matrix(TDM_group[[i]])) / nrow(TDM_group[[i]]) # Need to fix - will want to add group freqs
 }
 
-#-------------------------------------------------------
-# 9. Calculating similarities
-#-------------------------------------------------------
-
-# Computing similarities  
+# Computes similarities using the cosine function
 
 cosines <- list()
 cosines_list <- list()
-
-for (i in seq(length(TDM_group))){ ## change this
-  
+for (i in seq(length(TDM_group))){ 
   cosines[[i]] <- vector()
-  
   for (j in seq(length(clusters))){
-    
     cosines[[i]] <- append(cosines[[i]], cosine(group_freqs[[i]], cluster_freqs[[j]]))
-    
   }
   cosines_list[[i]] <- cosines[[i]]
 }
 
-# Creating data frame and scaled data frame
+# -----------------------------------------------------------
+# 8. Final processing
+# -----------------------------------------------------------
 
-cosines_df <- as.data.frame(do.call(rbind, cosines_list))
-cosines_df
-# cosines_df
-cosines_df_scaled <- as.data.frame(sapply(cosines_df, scale))
-cosines_df_scaled
+create_term_results <- function(){
+  term_results_df <- matrix(nrow = 10, ncol = n_clusters)
+  freq_results_df <- matrix(nrow = 10, ncol = n_clusters)
+  for (i in 1:n_clusters){
+    term_results_df[, i] <- names(sort(cluster_freqs[[i]], decreasing = T))[1:10]
+    freq_results_df[, i] <- sort(cluster_freqs[[i]], decreasing = T)[1:10]
+  }
+  term_results_df
+}
 
-# # Creating a list of the most frequent terms in each cluster for word clouds
-# 
-# ordered_clusters <- list()
-# for (i in seq(length(clusters))){
-#   ordered_clusters[[i]] <- sort(clusters[[i]], decreasing = TRUE)
-# }
-# 
-# # For wordclouds 
-# 
-# wc <- ordered_clusters
+term_results_df <- create_term_results()
 
-#-------------------------------------------------------
+write.csv(term_results_df, print_path2)
+
+create_freq_results <- function(){
+  freq_results_df <- matrix(nrow = 10, ncol = n_clusters)
+  for (i in 1:n_clusters){
+    freq_results_df[, i] <- sort(cluster_freqs[[i]], decreasing = T)[1:10]
+  }
+  freq_results_df
+}
+
+write.csv(freq_results_df, print_path3)
+
+freq_results_df <- create_freq_results()
+
+
+doc_by_index <- function(x){
+  my_matrix <- matrix(nrow = n_clusters, ncol = length(doc_list_cleaned))
+  for (i in 1:length(doc_list_cleaned)){
+    my_matrix[,i] <- table(factor(kfit$cluster[doc_list_cleaned[[i]]], levels = 1:n_clusters))
+  }
+    my_matrix
+}
+
+doc_by_index_matrix <- doc_by_index()
+
+colnames(doc_by_index_matrix) <- c("Paul", "J", "Cathy", "Julie") # teacher
+# colnames(doc_by_index_matrix) <- paste0("Time, ", 1:length(doc_list_cleaned)) # time
+rownames(doc_by_index_matrix) <- paste0("Cluster ", 1:n_clusters)
+
+chisq <- chisq.test(doc_by_index_matrix)
+chisq_p <- chisq$stdres > 1.96 | chisq$stdres < -1.96
+
+# -----------------------------------------------------------
+# 9. Preparing plots
+# -----------------------------------------------------------
+
+library(ggthemes)
+doc_by_index_df <- as.data.frame(doc_by_index_matrix)
+doc_plot <- gather(doc_by_index_df, Group, N)
+doc_plot <- cbind(doc_plot, as.vector(chisq_p))
+doc_plot[, 4] <- rep(paste0(1:n_clusters), length(doc_list_cleaned))
+doc_plot[, 3][(doc_plot[, 3] == TRUE)] <- "*"
+doc_plot[, 3][(doc_plot[, 3] == FALSE)] <- ""
+doc_plot
+names(doc_plot)[3:4] <- c("ChiSq", "Cluster")
+
+dodge = position_dodge(.9)
+plot <- ggplot(doc_plot, aes(x = Group, y = N, fill = Cluster, ymax = max(N))) + 
+  geom_bar(width = .825, position = dodge, stat = "identity") + 
+  geom_text(aes(label = ChiSq), position = dodge, vjust = .25) +
+  theme_minimal()
+  theme(text = element_text(size = 12, family = "Times New Roman"))
+
+ggsave(print_path1)
+
+# -----------------------------------------------------------
 # 10. Output
-#-------------------------------------------------------
+# -----------------------------------------------------------
 
-# Terms in term document matrix 
+# Diagnostics
 
-# print(TDM)
+print(TDM_cleaned)
+print(plot(1:18, wss, type="b", xlab="Number of Clusters",
+       ylab="Within groups sum of squares"))
+print(ss_explained)
+print(table(kfit$cluster))
 
-# Terms in term document matrix with sparse terms removed
+# Results
 
-TDM_common
-
-# Number of documents in each cluster
-# 
-# print(table(kfit$cluster))
-
-# 10 most frequently included terms in each cluster and adjusted terms
-
-print(clusters_df)
-sort(table(hclust_cut))
-sort(table(kfit$cluster))
-# print(adjclusters_df)
-
-# Cosines
-
-print(cosines_df)
-
-# For teachers
-
-# cos_plot <- gather(cosines_df, Cluster, cosines)
-# 
-# cos_plot$group <- rep(c("1_J", "2_Paul", "3_Cathy", "4_Julie"), length(cosines_df_scaled))
-# 
-# ggplot(data = cos_plot, aes(x = group, y = cosines, fill = Cluster)) +
-#   geom_bar(position = "dodge", stat = "identity", width = .75) +
-#   xlab("Teacher") +
-#   ylab("Cosines (z-score)") +
-#   ggtitle("Convince audience cosines (z-score) by teachers")
-
-# For time
-
-cos_plot <- gather(cosines_df, Cluster, cosines)
-
-cos_plot$group <- rep(1:length(doc_list), length(cosines_df))
-
-ggplot(data = cos_plot, aes(x = group, y = cosines, fill = Cluster)) +
-  geom_bar(position = "dodge", stat = "identity", width = .75) +
-  xlab("Time") +
-  ylab("Cosines") +
-  ggtitle("Criteria cosines by time")
+print(term_results_df)
+print(freq_results_df)
+print(doc_by_index_matrix)
+print(chisq_p)
+print(plot)
