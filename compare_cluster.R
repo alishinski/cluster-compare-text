@@ -6,7 +6,6 @@ rm(list = ls(all = TRUE))
 
 setwd("~/Dropbox/research/cluster-compare-text/")
 
-library(dplyr)
 library(tidyr)
 library(SnowballC)
 library(tm)
@@ -14,6 +13,8 @@ library(lsa)
 library(ggplot2)
 library(ppls)
 library(ggthemes)
+library(quanteda)
+library(dplyr)
 
 # Loading data frame
 all <- read.csv("scip_data.csv")
@@ -33,16 +34,16 @@ crit <- select(all, criteria, grade, teacher, ID, time, T1, T2, T3, T4, S1, S2, 
 n_clusters <- 6
 minimum_groups <- 2 # minimum groups a term has to be in for it to be included
 minimum_term_frequency <- 4 # minimum times a term has to occur overall for it to be included
-min_terms <- 1 # minimum terms in a document for it to be included
-term <- "audience"
+min_terms <- 2 # minimum terms in a document for it to be included
+term <- "purpose"
 
 # Selecting data frame
 
-text_vector <- aud1$audience1 # 6 clusters, 1 group: 1/2/3 # msu / teacher / research class, content, content, help understand, anyone, people who want 
+# text_vector <- aud1$audience1 # 6 clusters, 1 group: 1/2/3 # msu / teacher / research class, content, content, help understand, anyone, people who want 
 # text_vector <- aud2$audience2 # 3, groups: 1/2/3/4 # show them model
 # text_vector <- gen$generality # 5 clusters, 2 groups: 2/3/4 # gen, spec, diff, spec, spec - content dep.
 # text_vector <- evid$evidence # 4 clusters, 1 group: 1/2/3 # interesting distinction between info. and fit evid.
-# text_vector <- purp$purpose # 6 clusters, 2 groups: 2/3/4 # shows distinct knowledge-building purposes
+text_vector <- purp$purpose # 6 clusters, 2 groups: 2/3/4 # shows distinct knowledge-building purposes
 # text_vector <- crit$criteria # 2 clusters, 1 group: 1/2/3 # good, two clear groups
 
 print_path1 <- paste0("results/png/all/", term, ".png")
@@ -63,7 +64,7 @@ standard_stopwords <- c("a", "an", "the", "to", "of", "and", "for", "by", "on", 
 
 # Additional stopwords
 
-additional_stopwords <- c("lorum ipsum")
+additional_stopwords <- c("lorum")
 
 # Combine standard and additional stopwords
 
@@ -73,30 +74,9 @@ all_stopwords <- append(standard_stopwords, additional_stopwords)
 # 2. Process text
 # -----------------------------------------------------------
 
-# Modified stemCompletion function as stemCompletion included with the tm package was not working
-
-stemCompletionMod <- function(x, dictionary) {
-  x <- unlist(strsplit(as.character(x), " "))
-  x <- x[x != ""]
-  x <- stemCompletion(x, dictionary=dictionary)
-  x <- paste(x, sep="", collapse=" ")
-  PlainTextDocument(stripWhitespace(x))
-}
-
-# Creating and processing corpus
-
-myCorpus <- Corpus(VectorSource(text_vector))
-myCorpus <- tm_map(myCorpus, content_transformer(tolower), mc.cores = 1) # makes text lowercase
-myCorpus <- tm_map(myCorpus, removePunctuation, mc.cores = 1) # removes punctuation
-myCorpus <- tm_map(myCorpus, removeNumbers, mc.cores = 1) # removes numbers
-myCorpus <- tm_map(myCorpus, removeWords, all_stopwords, mc.cores=1) # removes stopwords
-myCorpus_copy <- myCorpus # makes a copy of the corpus for the stepCompletionMod function to compare to 
-myCorpus <- tm_map(myCorpus, stemDocument, mc.cores = 1) # stems text
-myCorpus <- tm_map(myCorpus, stemCompletionMod, myCorpus_copy) # completes stemmed text
-myCorpus <- tm_map(myCorpus, stripWhitespace, mc.cores = 1) # removes whitespace
-myCorpus <- tm_map(myCorpus, PlainTextDocument)
-
-print(paste("Processed ", length(text_vector), " documents", sep = ""))
+dfm <- dfm(text_vector, removeTwitter = T, stem = T, ignoredFeatures = all_stopwords)
+TDM <- t(convert(dfm, "tm"))
+myCorpus <- Corpus(VectorSource(text_vector)) # for indexing - will remove
 
 # -----------------------------------------------------------
 # 3. Creates a term document matrix from the processed text
@@ -402,8 +382,6 @@ rownames(doc_by_index_time) <- paste0("Cluster ", 1:n_clusters)
 rownames(doc_by_index_teacher) <- paste0("Cluster ", 1:n_clusters)
 rownames(doc_by_index_grade) <- paste0("Cluster ", 1:n_clusters)
 
-length(kfit$cluster)
-
 # Identifies ID with each cluster
 
 ID_by_cluster <- data.frame(cluster = kfit$cluster, doc_num = doc_names[adjminusCI])
@@ -470,17 +448,6 @@ create_plot <- function(doc_by_index){
 print(TDM_cleaned)
 print(wss_plot)
 
-# Results
-
-print(term_results_df)
-print(freq_results_df)
-
-
-print(plot)
-create_plot(doc_by_index_time)
-create_plot(doc_by_index_teacher)
-create_plot(doc_by_index_grade)
-
 # Qualitative analysis
 
 find_docs <- function(which_cluster){
@@ -497,16 +464,31 @@ find_docs <- function(which_cluster){
     } 
   }
   
-  indexed_ID_vector
+  all$doc_num %in% indexed_ID_vector
   
 }
 
-doc_index <- find_docs(3)
-doc_index <- all$doc_num %in% doc_index
+find_docs(1)
 print(as.character(all$audience1[doc_index]))
+# print(as.character(all$audience2[doc_index]))
+# print(as.character(all$generality[doc_index]))
+# print(as.character(all$purpose[doc_index]))
+# print(as.character(all$evidence[doc_index]))
+# print(as.character(all$criteria[doc_index]))
 
-# all$audience2[doc_index]
-# all$generality[doc_index]
-# all$purpose[doc_index]
-# all$evidence[doc_index]
-# all$criteria[doc_index]
+# Results
+
+print(term_results_df)
+print(freq_results_df)
+
+print(plot)
+create_plot(doc_by_index_time)
+create_plot(doc_by_index_teacher)
+create_plot(doc_by_index_grade)
+
+mean(colSums(as.matrix(TDM)))
+mean(colSums(as.matrix(TDM_common)))
+
+my_text_vector <- as.character(text_vector)
+my_dfm <- dfm(my_text_vector)
+mean(ntoken(my_dfm))
